@@ -108,7 +108,7 @@ public class PlayerInteractionController : MonoBehaviour
             return;
         }
 
-        if ((Input.GetButtonDown(teleportButton) || Input.GetButtonDown("Jump")) && currentOpenMenuObject == null)
+        if ((Input.GetButtonDown(teleportButton) || Input.GetButtonDown("Jump")))
             playerRaycaster.TeleportRigToGround();
 
         if (Input.GetButtonDown(openMenuButton) || Input.GetButtonDown("Fire1"))
@@ -117,7 +117,7 @@ public class PlayerInteractionController : MonoBehaviour
         if (Input.GetButtonDown(selectButton) || Input.GetButtonDown("Fire2"))
             TrySelectCurrentMenuButton();
 
-        if ((Input.GetButtonDown(actionButton) || Input.GetButtonDown("Fire3")) && currentOpenMenuObject == null)
+        if ((Input.GetButtonDown(actionButton) || Input.GetButtonDown("Fire3")))
             TrySpawnLastDestroyedObject();
     }
 
@@ -325,11 +325,12 @@ public class PlayerInteractionController : MonoBehaviour
     private void OpenMenuForObject(StorableObject targetObject)
     {
         if (currentOpenMenuObject != null)
+        {
             currentOpenMenuObject.ShowMenu(false);
+        }
 
         currentOpenMenuObject = targetObject;
         currentOpenMenuObject.ShowMenu(true);
-        SetMovementEnabled(false);
     }
 
     private void CloseCurrentMenu()
@@ -339,7 +340,6 @@ public class PlayerInteractionController : MonoBehaviour
             currentOpenMenuObject.ShowMenu(false);
             currentOpenMenuObject = null;
         }
-        SetMovementEnabled(true);
     }
 
     private void CloseCurrentObjectMenuOnly()
@@ -372,36 +372,36 @@ public class PlayerInteractionController : MonoBehaviour
 
     private void DestroyCurrentObject()
     {
-        if (currentOpenMenuObject == null) return;
+        if (currentOpenMenuObject == null)
+            return;
 
-        StorableObject obj = currentOpenMenuObject;
-        obj.ShowMenu(false);
+        StorableObject objectToDestroy = currentOpenMenuObject;
+
+        objectToDestroy.ShowMenu(false);
         currentOpenMenuObject = null;
-        SetMovementEnabled(true);
 
-        lastDestroyedObject = obj;
-        obj.gameObject.SetActive(false);
-        //Debug.Log("destroyed " + obj.name);
+        lastDestroyedObject = objectToDestroy;
+        objectToDestroy.gameObject.SetActive(false);
     }
 
     private void StoreCurrentObject()
     {
-        if (currentOpenMenuObject == null) return;
+        if (currentOpenMenuObject == null)
+            return;
 
-        // TODO: maybe make this configurable instead of hardcoded 3
         if (storedObjects.Count >= 3)
         {
             ShowInventoryFullMessage();
             return;
         }
 
-        StorableObject obj = currentOpenMenuObject;
-        obj.ShowMenu(false);
-        currentOpenMenuObject = null;
-        SetMovementEnabled(true);
+        StorableObject objectToStore = currentOpenMenuObject;
 
-        storedObjects.Add(obj);
-        obj.gameObject.SetActive(false);
+        objectToStore.ShowMenu(false);
+        currentOpenMenuObject = null;
+
+        storedObjects.Add(objectToStore);
+        objectToStore.gameObject.SetActive(false);
     }
 
     private void TrySpawnLastDestroyedObject()
