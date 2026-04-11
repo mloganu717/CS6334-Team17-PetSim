@@ -46,7 +46,7 @@ Open this scene in the Unity Editor to run, build, or modify the prototype. Ensu
 - **Branch:** `main`
 - **Clone:**
   ```bash
-  git clone https://github.com/[username]/PetSim.git
+  git clone https://github.com/mloganu717/CS6334-Team17-PetSim.git
   ```
 
 All scenes, assets, and scripts are version-controlled in the repository.
