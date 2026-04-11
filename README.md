@@ -42,7 +42,7 @@ Open this scene in the Unity Editor to run, build, or modify the prototype. Ensu
 
 ## GitHub
 
-- **Repository:** [YOUR GITHUB REPO URL HERE]
+- **Repository:** 'https://github.com/mloganu717/CS6334-Team17-PetSim'
 - **Branch:** `main`
 - **Clone:**
   ```bash
