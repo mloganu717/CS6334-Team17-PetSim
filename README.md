@@ -3,6 +3,20 @@
 
 ---
 
+## Group Members
+
+- Roman Goff
+- Logan Margabandu
+- Romik Sarkar
+
+---
+
+## Purpose
+
+PetSim is a virtual reality pet simulation designed to give users the experience of raising and caring for a pet. The application is aimed at those who may not be able to own a pet due to external circumstances, those who want to test out what it is like to have a pet before committing to one, or those who simply want to have fun in an interactive virtual environment.
+
+---
+
 ## Unity Scene
 
 The preliminary prototype is located at:
@@ -26,7 +40,7 @@ Open this scene in the Unity Editor to run, build, or modify the prototype. Ensu
 
 ---
 
-##  GitHub
+## GitHub
 
 - **Repository:** [YOUR GITHUB REPO URL HERE]
 - **Branch:** `main`
@@ -66,21 +80,21 @@ The wireless controller provides faster, more precise input mapped via Unity's I
 
 ---
 
-## 👤 Multiplayer
+## Multiplayer
 
 PetSim is a **single-player** experience. Multiplayer is not supported in this version. Each player runs an independent session on their own Android device.
 
 ---
 
-## 🎥 Video Demonstration
+## Video Demonstration
 
-> 📺 **YouTube Demo:** [ADD YOUR YOUTUBE LINK HERE]
+**YouTube Demo:** [ADD YOUR YOUTUBE LINK HERE]
 
 The video covers scene navigation, gaze-based interaction, controller input, and the core pet care loop.
 
 ---
 
-## ⚙️ Setup & Build Instructions
+## Setup and Build Instructions
 
 1. Clone the repository and open it in **Unity Hub**
 2. Go to **File > Build Settings** and set the platform to **Android**
