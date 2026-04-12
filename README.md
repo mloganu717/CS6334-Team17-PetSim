@@ -22,7 +22,7 @@ PetSim is a virtual reality pet simulation designed to give users the experience
 The preliminary prototype is located at:
 
 ```
-Assets/Scenes/Prototype
+Assets/Scenes/preliminary.apk
 ```
 
 Open this scene in the Unity Editor to run, build, or modify the prototype. Ensure the **Build Platform** is set to **Android** before deploying to a device.
@@ -88,7 +88,7 @@ PetSim is a **single-player** experience. Multiplayer is not supported in this v
 
 ## Video Demonstration
 
-**YouTube Demo:** [ADD YOUR YOUTUBE LINK HERE]
+**YouTube Demo:** 
 
 The video covers scene navigation, gaze-based interaction, controller input, and the core pet care loop.
 
