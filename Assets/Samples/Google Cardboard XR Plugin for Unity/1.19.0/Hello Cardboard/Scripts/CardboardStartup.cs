@@ -36,10 +36,12 @@ public class CardboardStartup : MonoBehaviour
         Screen.brightness = 1.0f;
 
         // Checks if the device parameters are stored and scans them if not.
+        /* Commented out to prevent annoying camera permission requests on every startup.
         if (!Api.HasDeviceParams())
         {
             Api.ScanDeviceParams();
         }
+        */
     }
 
     /// <summary>
