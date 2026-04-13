@@ -2,8 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace ithappy.Animals_FREE
-{
+    // mangages movement and animation of the pet
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(Animator))]
     [DisallowMultipleComponent]
@@ -321,4 +320,3 @@ namespace ithappy.Animals_FREE
         }
         #endregion
     }
-}

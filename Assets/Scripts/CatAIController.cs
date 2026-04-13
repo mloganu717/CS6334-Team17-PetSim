@@ -1,8 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace ithappy.Animals_FREE
-{
+    // ai controller for cat - computes path
     [RequireComponent(typeof(CreatureMover))]
     [RequireComponent(typeof(NavMeshAgent))]
     public class CatAIController : MonoBehaviour
@@ -35,7 +34,7 @@ namespace ithappy.Animals_FREE
 
         private Mode mode = Mode.Wander;
 
-        // --- Interaction State ---
+        //interactionstate
         private bool isInteracting = false;
         private PetInteractable pendingInteractable = null;
         private PetStats pendingPetStats = null;
@@ -47,8 +46,8 @@ namespace ithappy.Animals_FREE
             homePosition = transform.position;
 
 
-            // Let NavMeshAgent compute the path,
-            // but let CreatureMover handle the actual visible movement/rotation.
+            // navMeshAgent compute the path
+            // but creaturemover does visible movement/rotation
             agent.updatePosition = false;
             agent.updateRotation = false;
             agent.stoppingDistance = stopDistance;
@@ -79,13 +78,13 @@ namespace ithappy.Animals_FREE
 
             DriveCreatureMover();
 
-            // Keep the NavMeshAgent's simulated position in sync with the real object.
+            // keep navmeshagent's position in sync with the real object
             agent.nextPosition = transform.position;
         }
 
         private void DecideWhatToDo()
         {
-            // Don't interrupt an interaction walk
+            // don't interrupt interaction walk
             if (isInteracting) return;
 
             if (Time.time < waitUntilTime)
@@ -121,7 +120,7 @@ namespace ithappy.Animals_FREE
             {
                 SetDestinationNear(player.position);
             }
-            // GoToTarget keeps its destination set by the coroutine, nothing extra needed here.
+            // keeps its destination set by the coroutine
 
             Vector3 moveDirection = agent.desiredVelocity;
             moveDirection.y = 0f;
@@ -152,31 +151,40 @@ namespace ithappy.Animals_FREE
         }
 
         
-        public void GoToAndInteract(Transform target, PetInteractable interactable, PetStats pet)
+        public void GoToAndInteract(Transform target, PetInteractable interactable, PetStats pet, float overrideStopDistance = -1f, float stayDuration = 3f)
         {
+            Debug.Log("GoToAndInteract called with stayDuration: " + stayDuration);
             if (isInteracting) return;
             pendingInteractable = interactable;
             pendingPetStats = pet;
             isInteracting = true;
             mode = Mode.GoToTarget;
+            agent.stoppingDistance = overrideStopDistance > 0f ? overrideStopDistance : 0f;
             SetDestinationNear(target.position);
-            StartCoroutine(WaitForArrivalAndInteract(target));
+            StartCoroutine(WaitForArrivalAndInteract(target, overrideStopDistance > 0f ? overrideStopDistance : 0.3f, stayDuration));
         }
 
-        private System.Collections.IEnumerator WaitForArrivalAndInteract(Transform target)
+        private System.Collections.IEnumerator WaitForArrivalAndInteract(Transform target, float arrivalDistance = 0.3f, float stayDuration = 3f)
         {
-            // Keep walking until we are within stopping range
-            while (Vector3.Distance(transform.position, target.position) > stopDistance + 0.5f)
+            while (Vector3.Distance(transform.position, target.position) > arrivalDistance)
             {
                 SetDestinationNear(target.position);
                 yield return null;
             }
 
-            // Arrived — fire the interaction
+            agent.ResetPath();
+            mover.SetInput(Vector2.zero, transform.position + transform.forward, false, false);
+
+            yield return new WaitForSeconds(0.5f);
+
             if (pendingInteractable != null && pendingPetStats != null)
                 pendingInteractable.Interact(pendingPetStats);
 
-            // Resume normal AI
+            Debug.Log("Cat arrived, staying for " + stayDuration + " seconds");
+            yield return new WaitForSeconds(stayDuration);
+            Debug.Log("Cat leaving bowl");
+
+            agent.stoppingDistance = stopDistance;
             isInteracting = false;
             pendingInteractable = null;
             pendingPetStats = null;
@@ -194,8 +202,7 @@ namespace ithappy.Animals_FREE
 
         private void SetDestinationNear(Vector3 targetWorldPosition)
         {
-            // Use a large max distance (e.g., 5f) to ensure we can project down to the floor
-            // even if the target is a player's head camera or an object's center point
+        
             if (TrySampleNavMeshPoint(targetWorldPosition, 5f, out Vector3 point))
             {
                 agent.SetDestination(point);
@@ -231,4 +238,3 @@ namespace ithappy.Animals_FREE
             return false;
         }
     }
-}

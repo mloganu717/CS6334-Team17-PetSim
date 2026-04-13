@@ -34,13 +34,15 @@ public class SettingsMenu : MonoBehaviour
     private Image[] statFillImages;
     private TMPro.TMP_Text[] statValueTexts;
     private bool petStatsCardOpen;
+    private bool openedFromCat = false;
+    private float petStatsOpenTime;
 
     void Start()
     {
         SetButton(0);
         if (petStatsCard != null) petStatsCard.SetActive(false);
 
-        // Apply starting settings
+        // apply starting settings
         if (playerRaycaster != null && raycastLengths.Count > currentRaycastLengthIndex)
             playerRaycaster.SetMaxDistance(raycastLengths[currentRaycastLengthIndex]);
             
@@ -50,14 +52,14 @@ public class SettingsMenu : MonoBehaviour
 
     void Update()
     {
-        // 1. Handle Pet Stats Card state
+        // pet Stats Card state
         if (petStatsCardOpen)
         {
             HandlePetStatsUpdate();
             return;
         }
 
-        // 2. Handle Settings Menu state
+        // handle Settings Menu state
         if (interactable) {
             int verticalJs = (Input.GetAxisRaw("Vertical") == 0) ? 0 : Math.Sign(Input.GetAxisRaw("Vertical") * -1);
 
@@ -66,19 +68,26 @@ public class SettingsMenu : MonoBehaviour
                 SetButton((currentButton + verticalJs) % menuButtons.Count);
             }
 
-            // Confirm selection
+            // confirm selection
             if (Input.GetButtonDown("js5")) { 
                 StartCoroutine(CooldownMenu());
                 FlashButtonGreen(currentButton);
                 SelectCurrentItem();
             }
 
-            // Back button logic to close
             if (Input.GetButtonDown("Submit") || Input.GetButtonDown("js7") || Input.GetButtonDown("js0")) {
                 CloseMenu();
             }
         }
     }
+    public void OpenPetStatsCardStandalone() //can open petstats card without menu open
+    {
+    openedFromCat = true;
+    gameObject.SetActive(true); // open the settings canvas
+    if (settingsMenuContainer != null) settingsMenuContainer.SetActive(false); // hide buttons
+    OpenPetStatsCard(); // show stats card
+    }   
+
 
     public void SetButton(int newButton) {
         if (menuButtons.Count == 0) return;
@@ -100,7 +109,7 @@ public class SettingsMenu : MonoBehaviour
 
     private void SelectCurrentItem()
     {
-        // Emulate the 7 options originally defined in PlayerInteractionController
+        //  7 options
         switch (currentButton)
         {
             case 0: CloseMenu(); break;
@@ -112,20 +121,22 @@ public class SettingsMenu : MonoBehaviour
             case 6: QuitApplication(); break;
         }
         
-        // Also fire Inspector button events
+        //  button events
         if (menuButtons.Count > currentButton && menuButtons[currentButton] != null) {
             menuButtons[currentButton].onClick.Invoke();
         }
     }
 
     public void CloseMenu() { 
-        if (characterMovement != null) characterMovement.enabled = true;
+        if (characterMovement != null && (inventory == null || !inventory.IsInventoryOpen()))
+            characterMovement.enabled = true;
         if (playerInteractionController != null) playerInteractionController.enabled = true;
-        if (playerRaycaster != null) playerRaycaster.SetRaycastEnabled(true);
+        if (playerRaycaster != null && (inventory == null || !inventory.IsInventoryOpen()))
+            playerRaycaster.SetRaycastEnabled(true);
         gameObject.SetActive(false);
     }
 
-    // --- Settings Behaviors ---
+    //settings behaviors 
 
     public void FlashButtonGreen(int index) {
         if (index >= 0 && index < menuButtons.Count && menuButtons[index] != null) {
@@ -136,10 +147,10 @@ public class SettingsMenu : MonoBehaviour
     private IEnumerator FlashGreenRoutine(Image img) {
         if (img == null) yield break;
         img.color = Color.green;
-        // Use realtime so changes to Time.timeScale don't freeze the flash effect
+        // use realtime so changes to Time.timeScale don't freeze the flash effect
         yield return new WaitForSecondsRealtime(0.15f); 
         if (img != null && gameObject.activeInHierarchy) {
-            // Restore to yellow if it is still the currently hovered button
+            // restore to yellow if it is still the currently hovered button
             img.color = (menuButtons.IndexOf(img.GetComponent<Button>()) == currentButton) ? Color.yellow : Color.white;
         }
     }
@@ -175,11 +186,12 @@ public class SettingsMenu : MonoBehaviour
     {
         if (petStatsCard == null) return;
         petStatsCardOpen = true;
+        petStatsOpenTime = Time.time; // record when it opened
         
         if (settingsMenuContainer != null) settingsMenuContainer.SetActive(false);
         petStatsCard.SetActive(true);
 
-        // Fetch UI Fill and Text elements if not done yet
+        // fetch UI Fill and Text elements if not done yet
         if (statFillImages == null || statValueTexts == null)
         {
             var fills = new List<Image>();
@@ -216,7 +228,7 @@ public class SettingsMenu : MonoBehaviour
             statFillImages[3].fillAmount = hygiene / 100f;
             statFillImages[4].fillAmount = energy / 100f;
 
-            // Update bar colors (Green -> Yellow -> Red)
+            // update bar colors (Green -> Yellow -> Red)
             for (int i = 0; i < 5; i++)
             {
                 statFillImages[i].color = GetStatColor(statFillImages[i].fillAmount);
@@ -224,19 +236,30 @@ public class SettingsMenu : MonoBehaviour
 
             if (statValueTexts != null && statValueTexts.Length >= 5)
             {
-                statValueTexts[0].text = Mathf.RoundToInt(hunger).ToString() + "%";
-                statValueTexts[1].text = Mathf.RoundToInt(thirst).ToString() + "%";
-                statValueTexts[2].text = Mathf.RoundToInt(happiness).ToString() + "%";
-                statValueTexts[3].text = Mathf.RoundToInt(hygiene).ToString() + "%";
-                statValueTexts[4].text = Mathf.RoundToInt(energy).ToString() + "%";
+                statValueTexts[0].text = hunger.ToString("F2") + "%";
+                statValueTexts[1].text = thirst.ToString("F2") + "%";
+                statValueTexts[2].text = happiness.ToString("F2") + "%";
+                statValueTexts[3].text = hygiene.ToString("F2") + "%";
+                statValueTexts[4].text = energy.ToString("F2") + "%";
             }
         }
+
+        if (Time.time < petStatsOpenTime + 0.3f) return;
 
         if (Input.GetButtonDown("js5") || Input.GetButtonDown("js0") || Input.GetButtonDown("js7") || Input.GetButtonDown("Submit"))
         {
             petStatsCardOpen = false;
             petStatsCard.SetActive(false);
-            if (settingsMenuContainer != null) settingsMenuContainer.SetActive(true);
+            
+            if (openedFromCat)
+            {
+                openedFromCat = false;
+                gameObject.SetActive(false);
+            }
+            else
+            {
+                if (settingsMenuContainer != null) settingsMenuContainer.SetActive(true);
+            }
         }
     }
 

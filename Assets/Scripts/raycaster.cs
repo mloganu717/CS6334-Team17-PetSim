@@ -124,7 +124,8 @@ public class raycaster : MonoBehaviour
             tooltipText.text = currentTarget.DisplayName;
 
             // display above the object rather than at the exact hit point
-            Vector3 objectTop = currentTarget.transform.position + Vector3.up * 0.3f;
+            Vector3 objectTop = currentTarget.transform.position + Vector3.up * (currentTarget.GetComponent<Collider>().bounds.extents.y + 0.3f);
+
             tooltipText.transform.position = objectTop;
 
             // face camera

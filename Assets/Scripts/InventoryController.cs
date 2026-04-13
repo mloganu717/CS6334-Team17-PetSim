@@ -16,7 +16,7 @@ public class InventoryController : MonoBehaviour
     public PlayerInteractionController interactionController;
     public CharacterMovement characterMovement;
     public raycaster playerRaycaster;
-
+    [SerializeField] private CharacterMovement movementScript;
     private int currentSlot = 0;
     private bool isInteractable = true;
     private float inputCooldown = 0.25f;
@@ -29,7 +29,7 @@ public class InventoryController : MonoBehaviour
 
     void OnEnable()
     {
-        // Safety lock: if this script or its object is enabled, check if menu is open
+        
         if (inventoryMenu != null && inventoryMenu.activeSelf)
         {
             if (characterMovement != null) characterMovement.enabled = false;
@@ -49,21 +49,27 @@ public class InventoryController : MonoBehaviour
                 SetSlot(currentSlot + direction);
             }
 
-            if (Input.GetButtonDown("js5") || Input.GetButtonDown("Submit"))
+            if (Input.GetButtonDown("js5") || Input.GetButtonDown("Submit") || Input.GetKeyDown(KeyCode.Return))
             {
                 SelectActiveSlot();
             }
         }
     }
-
+    public void SetMovementEnabled(bool enabled)
+        {
+            if (movementScript != null)
+                movementScript.enabled = enabled;
+        }
     public void OpenInventory()
     {
+        SetMovementEnabled(false);
         if (inventoryMenu == null) return;
         inventoryMenu.SetActive(true);
         isInteractable = true;
         
         if (characterMovement != null) characterMovement.enabled = false;
         if (playerRaycaster != null) playerRaycaster.SetRaycastEnabled(false);
+        if (interactionController != null) interactionController.SetMovementEnabled(false);
 
         UpdateInventoryUI();
         SetSlot(0);
@@ -74,8 +80,13 @@ public class InventoryController : MonoBehaviour
         inventoryMenu.SetActive(false);
         if (characterMovement != null) characterMovement.enabled = true;
         if (playerRaycaster != null) playerRaycaster.SetRaycastEnabled(true);
+        if (interactionController != null) interactionController.SetMovementEnabled(true);
+        SetMovementEnabled(true);
     }
-
+    public bool IsInventoryOpen()
+    {
+        return inventoryMenu != null && inventoryMenu.activeSelf;
+    }
     private void UpdateInventoryUI()
     {
         var items = interactionController.StoredObjects;
@@ -102,11 +113,13 @@ public class InventoryController : MonoBehaviour
     private Texture GetThumbnail(string itemName)
     {
         if (thumbnails == null || thumbnails.Count == 0) return null;
-        if (itemName.Contains("Food")) return thumbnails.Count > 0 ? thumbnails[0] : null;
+        if (itemName.Contains("Food"))  return thumbnails.Count > 0 ? thumbnails[0] : null;
         if (itemName.Contains("Water")) return thumbnails.Count > 1 ? thumbnails[1] : null;
-        if (itemName.Contains("Ball")) return thumbnails.Count > 2 ? thumbnails[2] : null;
-        if (itemName.Contains("Bed")) return thumbnails.Count > 3 ? thumbnails[3] : null;
+        if (itemName.Contains("Ball"))  return thumbnails.Count > 2 ? thumbnails[2] : null;
+        if (itemName.Contains("Bed"))   return thumbnails.Count > 3 ? thumbnails[3] : null;
         if (itemName.Contains("Brush")) return thumbnails.Count > 4 ? thumbnails[4] : null;
+        if (itemName.Contains("Clock")) return thumbnails.Count > 5 ? thumbnails[5] : null;
+        if (itemName.Contains("Phone")) return thumbnails.Count > 6 ? thumbnails[6] : null;
         return thumbnails[0];
     }
 

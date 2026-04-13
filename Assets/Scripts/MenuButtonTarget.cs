@@ -10,7 +10,13 @@ public class MenuButtonTarget : MonoBehaviour
         Exit,
         Use,
         CallVet,
-        OrderFood
+        OrderFood,
+        Pet,
+        ShowStats,
+        Play,
+        Eat,
+        Drink,
+        Sleep
     }
 
     [SerializeField] private MenuAction action;
@@ -41,9 +47,9 @@ public class MenuButtonTarget : MonoBehaviour
         if (buttonImage != null)
             buttonImage.color = targetColor;
 
-        var text = GetComponentInChildren<TMPro.TMP_Text>();
-        if (text != null)
-            text.color = targetColor;
+        // var text = GetComponentInChildren<TMPro.TMP_Text>(); //bugs with text color
+        // if (text != null)
+        //     text.color = targetColor;
     }
 
     public void UpdateBoxCollider()

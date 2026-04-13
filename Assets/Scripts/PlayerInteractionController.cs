@@ -23,7 +23,7 @@ public class PlayerInteractionController : MonoBehaviour
     [SerializeField] private string selectButton = "js5"; // b
     [SerializeField] private string actionButton = "js10"; // a
     [SerializeField] private string settingsButton = "Submit"; // settings
-    [SerializeField] private string verticalAxis   = "Vertical"; 
+    // [SerializeField] private string verticalAxis   = "Vertical"; 
     [SerializeField] private InventoryController inventoryUI;
 
     [Header("Placement")]
@@ -53,7 +53,12 @@ public class PlayerInteractionController : MonoBehaviour
     {
         if (settingsMenuCanvas != null && settingsMenuCanvas.activeSelf)
         {
-            return; // settings UI intercepts input
+            return; 
+        }
+
+        if (inventoryUI != null && inventoryUI.IsInventoryOpen())
+        {
+            return; 
         }
 
         if ((Input.GetButtonDown(settingsButton) || Input.GetButtonDown("js7") || Input.GetButtonDown("js0")) && heldObject == null)
@@ -63,7 +68,7 @@ public class PlayerInteractionController : MonoBehaviour
         }
 
         // open inventory
-        if (Input.GetButtonDown("js1") && heldObject == null)
+        if (Input.GetButtonDown("js1") || Input.GetKeyDown(KeyCode.I) && heldObject == null)
         {
             if (inventoryUI != null) inventoryUI.OpenInventory();
             return;
@@ -142,6 +147,10 @@ public class PlayerInteractionController : MonoBehaviour
         if (target == null)
             target = playerRaycaster.CurrentTarget.GetComponentInParent<StorableObject>();
 
+        // don't open menu if ball is still rolling
+        var ball = target?.GetComponent<ToyBall>();
+        if (ball != null && ball.IsRolling) return;
+
         if (target != null)
             OpenMenuForObject(target);
     }
@@ -176,15 +185,36 @@ public class PlayerInteractionController : MonoBehaviour
     private void TrySelectCurrentMenuButton()
     {
         if (currentOpenMenuObject == null || playerRaycaster.CurrentMenuButton == null) return;
+        var catMenu = currentOpenMenuObject.GetComponent<CatObjectMenu>();
+        if (catMenu == null)
+            catMenu = currentOpenMenuObject.GetComponentInParent<CatObjectMenu>();
 
         switch (playerRaycaster.CurrentMenuButton.Action)
         {
             case MenuButtonTarget.MenuAction.Destroy: DestroyCurrentObject(); break;
             case MenuButtonTarget.MenuAction.Store:   StoreCurrentObject();   break;
-            case MenuButtonTarget.MenuAction.Exit:    CloseCurrentMenu();     break;
+            case MenuButtonTarget.MenuAction.Exit:    if (catMenu != null) catMenu.CloseMenu(); else CloseCurrentMenu(); break;
             case MenuButtonTarget.MenuAction.Use:     UseCurrentObject();     break;
             case MenuButtonTarget.MenuAction.CallVet: CallVet();            break;
             case MenuButtonTarget.MenuAction.OrderFood: OrderFood();        break;
+            case MenuButtonTarget.MenuAction.Pet:      if (catMenu != null) catMenu.PetCat();      break;
+            case MenuButtonTarget.MenuAction.ShowStats: if (catMenu != null) catMenu.ShowStats();  break;
+            case MenuButtonTarget.MenuAction.Play:     if (catMenu != null) catMenu.PlayWithCat(); break;
+            case MenuButtonTarget.MenuAction.Drink:
+                var bowl = currentOpenMenuObject.GetComponent<WaterBowl>();
+                if (bowl != null) bowl.DrinkCommand();
+                CloseCurrentMenu();
+                break;
+            case MenuButtonTarget.MenuAction.Eat:
+                var foodBowl = currentOpenMenuObject.GetComponent<FoodBowl>();
+                if (foodBowl != null) foodBowl.EatCommand();
+                CloseCurrentMenu();
+                break;
+            case MenuButtonTarget.MenuAction.Sleep:
+                var bed = currentOpenMenuObject.GetComponent<PetBed>();
+                if (bed != null) bed.SleepCommand();
+                CloseCurrentMenu();
+                break;
         }
     }
 
@@ -216,6 +246,14 @@ public class PlayerInteractionController : MonoBehaviour
     {
         if (currentOpenMenuObject == null) return;
 
+        var ball = currentOpenMenuObject.GetComponent<ToyBall>();
+        if (ball != null)
+        {
+            ball.KickBall(playerRaycaster.transform.forward);
+            CloseCurrentMenu();
+            return;
+        }
+
         var interactable = currentOpenMenuObject.GetComponent<PetInteractable>();
         if (interactable == null)
             interactable = currentOpenMenuObject.GetComponentInParent<PetInteractable>();
@@ -225,11 +263,11 @@ public class PlayerInteractionController : MonoBehaviour
             PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
             if (pet != null)
             {
-                var cat = FindAnyObjectByType<ithappy.Animals_FREE.CatAIController>();
+                var cat = FindAnyObjectByType<CatAIController>();
                 if (cat != null)
                     cat.GoToAndInteract(currentOpenMenuObject.transform, interactable, pet);
                 else
-                    interactable.Interact(pet); // fallback: no cat AI
+                    interactable.Interact(pet);
             }
         }
 
@@ -291,7 +329,7 @@ public class PlayerInteractionController : MonoBehaviour
         lastDestroyedObject = null;
     }
 
-    private void SetMovementEnabled(bool enabled)
+    public void SetMovementEnabled(bool enabled)
     {
         if (movementScript != null)
             movementScript.enabled = enabled;
