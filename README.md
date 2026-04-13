@@ -88,7 +88,7 @@ PetSim is a **single-player** experience. Multiplayer is not supported in this v
 
 ## Video Demonstration
 
-**YouTube Demo:** 
+**YouTube Demo:** https://www.youtube.com/shorts/CGOvY5Q0b1g
 
 The video covers scene navigation, gaze-based interaction, controller input, and the core pet care loop.
 
