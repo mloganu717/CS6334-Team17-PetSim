@@ -215,7 +215,6 @@ GameObject:
   - component: {fileID: 1984632464058045902}
   - component: {fileID: 3612929411495994555}
   - component: {fileID: 9218485110517726175}
-  - component: {fileID: 9135578367441701664}
   m_Layer: 0
   m_Name: TV_Apt_01
   m_TagString: Untagged
@@ -354,18 +353,3 @@ VideoPlayer:
   m_WaitForFirstFrame: 1
   m_FrameReadyEventEnabled: 0
   m_VideoShaders: []
---- !u!114 &9135578367441701664
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8890821166399119553}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c2766a7788965ad48a6c5eed4f6be687, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TV
-  videoPlayer: {fileID: 9218485110517726175}
-  playerCamera: {fileID: 0}
-  detectionAngle: 30
