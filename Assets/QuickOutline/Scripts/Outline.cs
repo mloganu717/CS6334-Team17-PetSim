@@ -182,6 +182,9 @@ public class Outline : MonoBehaviour {
     // Retrieve or generate smooth normals
     foreach (var meshFilter in GetComponentsInChildren<MeshFilter>()) {
 
+      // skip if mesh is null
+      if (meshFilter.sharedMesh == null) continue;
+
       // Skip if smooth normals have already been adopted
       if (!registeredMeshes.Add(meshFilter.sharedMesh)) {
         continue;
@@ -204,6 +207,9 @@ public class Outline : MonoBehaviour {
 
     // Clear UV3 on skinned mesh renderers
     foreach (var skinnedMeshRenderer in GetComponentsInChildren<SkinnedMeshRenderer>()) {
+
+      // skip if mesh is null
+      if (skinnedMeshRenderer.sharedMesh == null) continue;
 
       // Skip if UV3 has already been reset
       if (!registeredMeshes.Add(skinnedMeshRenderer.sharedMesh)) {
