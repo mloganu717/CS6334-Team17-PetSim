@@ -22,9 +22,6 @@ public class XRCardboardController : MonoBehaviour
     [SerializeField, Range(.05f, 2)]
     float dragRate = .2f;
 
-    // ── FIX: set this to true while any menu is open to freeze look rotation ──
-    [HideInInspector] public bool lookLocked = false;
-
     TrackedPoseDriver poseDriver;
     Camera cam;
     Quaternion initialRotation;
@@ -63,18 +60,6 @@ public class XRCardboardController : MonoBehaviour
 #endif
             DisableVR();
 
-        // ── FIX: skip ALL rotation input when a menu is open ──────────────────
-        if (lookLocked)
-        {
-            // Also disable the TrackedPoseDriver (gyro) while locked.
-            // We toggle it each frame so it gracefully resumes when unlocked.
-            if (poseDriver != null) poseDriver.enabled = false;
-            return;
-        }
-
-        // Re-enable gyro tracking when not locked
-        if (poseDriver != null) poseDriver.enabled = true;
-
 #if UNITY_EDITOR
         if (vrActive)
             SimulateVR();
@@ -82,13 +67,9 @@ public class XRCardboardController : MonoBehaviour
             SimulateDrag();
 #else
         if (UnityEngine.XR.XRSettings.enabled)
-        {
-            // VR mode: TrackedPoseDriver handles rotation, nothing to do here
-        }
-        else
-        {
-            CheckDrag();
-        }
+            return;
+
+        CheckDrag();
 #endif
 
         attitude = initialRotation * Quaternion.Euler(dragDegrees.x, 0, 0);

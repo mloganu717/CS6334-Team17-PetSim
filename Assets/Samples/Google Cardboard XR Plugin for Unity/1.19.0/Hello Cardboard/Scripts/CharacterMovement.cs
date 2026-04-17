@@ -1,46 +1,48 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class CharacterMovement : MonoBehaviour
 {
     CharacterController charCntrl;
-
     [Tooltip("The speed at which the character will move.")]
     public float speed = 5f;
-
     [Tooltip("The camera representing where the character is looking.")]
     public GameObject cameraObj;
-
     [Tooltip("Should be checked if using the Bluetooth Controller to move. If using keyboard, leave this unchecked.")]
     public bool joyStickMode;
+    [SerializeField] private MovementSettings movementSettings;
 
-    // Set by menu managers to block input without disabling gravity
-    [HideInInspector] public bool movementLocked = false;
-
+    // Start is called before the first frame update
     void Start()
     {
         charCntrl = GetComponent<CharacterController>();
+        // snap to ground on start
+        if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, 10f))
+        {
+            Vector3 pos = transform.position;
+            pos.y = hit.point.y;
+            transform.position = pos;
+            Physics.SyncTransforms();
+        }
     }
 
+    // Update is called once per frame
     void Update()
     {
-        if (movementLocked)
-        {
-            // Keep gravity applied even when movement is locked
-            charCntrl.SimpleMove(Vector3.zero);
-            return;
-        }
-
+        //Get horizontal and Vertical movements
         float horComp = Input.GetAxis("Horizontal");
         float vertComp = Input.GetAxis("Vertical");
 
-        if (joyStickMode)
-        {
-            horComp = Input.GetAxis("Vertical");
-            vertComp = Input.GetAxis("Horizontal") * -1;
-        }
+        //if (joyStickMode)
+        //{
+        //    horComp = Input.GetAxis("Vertical");
+        //    vertComp = Input.GetAxis("Horizontal") * -1;
+        //}
 
         Vector3 moveVect = Vector3.zero;
 
+        //Get look Direction
         Vector3 cameraLook = cameraObj.transform.forward;
         cameraLook.y = 0f;
         cameraLook = cameraLook.normalized;
@@ -50,8 +52,12 @@ public class CharacterMovement : MonoBehaviour
 
         moveVect += rightVect * horComp;
         moveVect += forwardVect * vertComp;
-        moveVect *= speed;
+
+        moveVect *= movementSettings.CurrentSpeed;
+     
 
         charCntrl.SimpleMove(moveVect);
+
+
     }
 }
