@@ -47,6 +47,11 @@ public class CatAIController : MonoBehaviour
     [Header("NavMesh Throttle")]
     [SerializeField] private float destinationUpdateThreshold = 0.25f;
 
+    [Header("Arrival Behaviour")]
+    [SerializeField] private float arrivalDistance = 0.5f;
+    [SerializeField] private Vector2 rubDurationRange = new(1f, 2.5f);
+    [SerializeField] private float nudgeDistance = 1.2f;
+
     private enum CatState
     {
         Wander, FollowPlayer, PlayWithToy,
@@ -66,6 +71,9 @@ public class CatAIController : MonoBehaviour
 
     private System.Action _pendingBusyCallback;
 
+    private bool _arrivedAtDestination;
+    private float _rubUntilTime;
+
     private Transform _commandTarget;
     private PetInteractable _commandInteractable;
     private PetStats _commandPetStats;
@@ -82,19 +90,19 @@ public class CatAIController : MonoBehaviour
 
     private void Awake()
     {
-        _mover  = GetComponent<CreatureMover>();
-        _agent  = GetComponent<NavMeshAgent>();
-        _mood   = GetComponent<CatMood>();
-        _needs  = GetComponent<CatNeeds>();
+        _mover = GetComponent<CreatureMover>();
+        _agent = GetComponent<NavMeshAgent>();
+        _mood = GetComponent<CatMood>();
+        _needs = GetComponent<CatNeeds>();
         _senses = GetComponent<CatSenses>();
 
         _homePosition = transform.position;
 
-        _agent.updatePosition   = false;
-        _agent.updateRotation   = false;
+        _agent.updatePosition = false;
+        _agent.updateRotation = false;
         _agent.stoppingDistance = stopDistance;
-        _agent.autoBraking      = true;
-        _agent.autoRepath       = true;
+        _agent.autoBraking = true;
+        _agent.autoRepath = true;
     }
 
     private void Start()
@@ -131,18 +139,18 @@ public class CatAIController : MonoBehaviour
     {
         if (target == null || interactable == null || pet == null) return;
 
-        _commandTarget       = target;
+        _commandTarget = target;
         _commandInteractable = interactable;
-        _commandPetStats     = pet;
-        _commandStopDist     = stopDist;
+        _commandPetStats = pet;
+        _commandStopDist = stopDist;
         _commandBusyDuration = busyDuration;
 
         TransitionTo(CatState.CommandedInteract);
     }
 
-    public void OnPatted()     => _mood.Reward(4f);
+    public void OnPatted() => _mood.Reward(4f);
     public void OnTreatGiven() => _mood.Reward(10f);
-    public void OnStartled()   => _mood.OnStartled();
+    public void OnStartled() => _mood.OnStartled();
 
     private void DecideState()
     {
@@ -166,9 +174,9 @@ public class CatAIController : MonoBehaviour
             case NeedType.Litter when _senses.NearestLitter != null:
                 TransitionTo(CatState.UseLitterBox); return;
             case NeedType.Food when _senses.NearestFood != null:
-                TransitionTo(CatState.EatFood);      return;
+                TransitionTo(CatState.EatFood); return;
             case NeedType.Water when _senses.NearestWater != null:
-                TransitionTo(CatState.DrinkWater);   return;
+                TransitionTo(CatState.DrinkWater); return;
         }
 
         if (_mood.Affinity >= _mood.playThreshold && _senses.NearestToy != null)
@@ -199,6 +207,8 @@ public class CatAIController : MonoBehaviour
         if (_state == next) return;
 
         _state = next;
+        _arrivedAtDestination = false;
+        _rubUntilTime = 0f;
 
         switch (next)
         {
@@ -287,11 +297,15 @@ public class CatAIController : MonoBehaviour
                 if (_senses.IsNearTarget(_commandTarget, _commandStopDist + 0.2f))
                 {
                     var interactable = _commandInteractable;
-                    var pet          = _commandPetStats;
-                    float busy       = _commandBusyDuration;
+                    var pet = _commandPetStats;
+                    float busy = _commandBusyDuration;
                     ClearCommandedState();
                     StartBusy(busy, CatState.Wander, () => interactable.Interact(pet));
                 }
+                break;
+
+            case CatState.Wander:
+                CheckWanderArrival();
                 break;
         }
 
@@ -307,8 +321,11 @@ public class CatAIController : MonoBehaviour
             moveDir.y = 0f;
         }
 
-        bool isWaiting  = Time.time < _waitUntilTime || _state == CatState.Busy;
-        bool shouldMove = !isWaiting && moveDir.magnitude > 0.1f;
+        // Rubbing: cat is stopped, facing slightly away from the object it nudged
+        bool isRubbing = Time.time < _rubUntilTime;
+        bool isWaiting = Time.time < _waitUntilTime || _state == CatState.Busy || isRubbing;
+        bool hasVelocity = _agent.velocity.sqrMagnitude > 0.04f;
+        bool shouldMove = !isWaiting && moveDir.magnitude > 0.1f && hasVelocity;
 
         if (!shouldMove && player != null && _mood.IsFriendly)
             lookTarget = player.position;
@@ -320,11 +337,57 @@ public class CatAIController : MonoBehaviour
         _mover.SetInput(shouldMove ? new Vector2(0f, 1f) : Vector2.zero, lookTarget, shouldRun, false);
     }
 
+    // Called every frame while wandering. Detects when the cat has reached its
+    // destination, stops it, runs a short rub pause, then nudges it away before
+    // picking a new wander point. This prevents the cat from walking into objects.
+    private void CheckWanderArrival()
+    {
+        // Already rubbing — wait it out then pick a new point
+        if (Time.time < _rubUntilTime)
+            return;
+
+        if (_arrivedAtDestination)
+        {
+            // Rub finished — nudge away from the object and pick a new wander point
+            _arrivedAtDestination = false;
+            NudgeAwayFromObstacle();
+            _waitUntilTime = Time.time + Random.Range(idlePauseRange.x, idlePauseRange.y);
+            PickNewWanderPoint();
+            return;
+        }
+
+        if (!_agent.pathPending && _agent.hasPath &&
+            _agent.remainingDistance <= arrivalDistance)
+        {
+            // Arrived — stop and start the rub pause
+            _agent.ResetPath();
+            _arrivedAtDestination = true;
+            _rubUntilTime = Time.time + Random.Range(rubDurationRange.x, rubDurationRange.y);
+        }
+    }
+
+    // Picks a point slightly behind and to the side of the cat's current facing
+    // so it turns and walks away from whatever it just reached, rather than
+    // immediately charging back into it.
+    private void NudgeAwayFromObstacle()
+    {
+        Vector3 back = -transform.forward;
+        float angle = Random.Range(-60f, 60f);
+        Vector3 nudge = Quaternion.AngleAxis(angle, Vector3.up) * back * nudgeDistance;
+        Vector3 target = transform.position + nudge;
+
+        if (TrySampleNavMeshPoint(target, 2f, out Vector3 pt))
+        {
+            _agent.SetDestination(pt);
+            _lastSetDestination = pt;
+        }
+    }
+
     private void ClearCommandedState()
     {
-        _commandTarget       = null;
+        _commandTarget = null;
         _commandInteractable = null;
-        _commandPetStats     = null;
+        _commandPetStats = null;
     }
 
     private Vector3 ComputeLookTarget()
@@ -335,9 +398,9 @@ public class CatAIController : MonoBehaviour
         float dist = DistanceTo(player);
         if (dist > lookAtMaxDistance || _state == CatState.Flee) return defaultLook;
 
-        float affinityWeight  = Mathf.InverseLerp(0f, 100f, _mood.Affinity);
+        float affinityWeight = Mathf.InverseLerp(0f, 100f, _mood.Affinity);
         float proximityWeight = 1f - Mathf.Clamp01(dist / lookAtMaxDistance);
-        float lookWeight      = Mathf.Clamp01(affinityWeight * 0.6f + proximityWeight * 0.4f);
+        float lookWeight = Mathf.Clamp01(affinityWeight * 0.6f + proximityWeight * 0.4f);
 
         if (_mood.IsWary) lookWeight *= 0.3f;
 
@@ -349,10 +412,10 @@ public class CatAIController : MonoBehaviour
     {
         if (_state == CatState.Busy) return;
 
-        _busyUntilTime       = Time.time + duration;
-        _busyReturnTo        = returnState;
+        _busyUntilTime = Time.time + duration;
+        _busyReturnTo = returnState;
         _pendingBusyCallback = onComplete;
-        _state               = CatState.Busy;
+        _state = CatState.Busy;
 
         _agent.ResetPath();
         _waitUntilTime = _busyUntilTime;
@@ -393,7 +456,7 @@ public class CatAIController : MonoBehaviour
     {
         if (player == null) { PickNewWanderPoint(); return; }
 
-        Vector3 awayDir   = (transform.position - player.position).normalized;
+        Vector3 awayDir = (transform.position - player.position).normalized;
         Vector3 candidate = transform.position + awayDir * fleeRadius;
 
         if (TrySampleNavMeshPoint(candidate, 3f, out Vector3 pt))
@@ -411,7 +474,7 @@ public class CatAIController : MonoBehaviour
     {
         for (int i = 0; i < 12; i++)
         {
-            Vector2 circle    = Random.insideUnitCircle * radius;
+            Vector2 circle = Random.insideUnitCircle * radius;
             Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
             if (TrySampleNavMeshPoint(candidate, 2f, out point)) return true;
         }
