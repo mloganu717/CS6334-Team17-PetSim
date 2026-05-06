@@ -21,7 +21,11 @@ public class MenuButtonTarget : MonoBehaviour
         PhoneHome,
         StartVetCall,
         EndVetCall,
-        ClosePhone
+        ClosePhone,
+
+        VetOption0,
+        VetOption1,
+        VetOption2
     }
 
     [SerializeField] private MenuAction action;

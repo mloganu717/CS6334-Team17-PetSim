@@ -4,5 +4,6 @@ public enum MedicineType
     HungerMedicine,
     ThirstMedicine,
     EnergyMedicine,
-    HappinessMedicine
+    HappinessMedicine,
+    HygieneMedicine
 }

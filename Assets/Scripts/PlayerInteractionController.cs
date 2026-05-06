@@ -231,6 +231,21 @@ public class PlayerInteractionController : MonoBehaviour
                 if (phoneUIManager != null)
                     phoneUIManager.ClosePhone();
                 return;
+
+            case MenuButtonTarget.MenuAction.VetOption0:
+                if (phoneUIManager != null)
+                    phoneUIManager.SelectVetOption(0);
+                return;
+
+            case MenuButtonTarget.MenuAction.VetOption1:
+                if (phoneUIManager != null)
+                    phoneUIManager.SelectVetOption(1);
+                return;
+
+            case MenuButtonTarget.MenuAction.VetOption2:
+                if (phoneUIManager != null)
+                    phoneUIManager.SelectVetOption(2);
+                return;
         }
 
         // Everything below this point requires an actual object menu to be open.

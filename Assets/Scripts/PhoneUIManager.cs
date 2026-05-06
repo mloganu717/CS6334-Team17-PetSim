@@ -188,4 +188,12 @@ public class PhoneUIManager : MonoBehaviour
             button.UpdateBoxCollider();
         }
     }
+
+    public void SelectVetOption(int optionIndex)
+    {
+        if (vetCallManager != null)
+        {
+            vetCallManager.SelectOption(optionIndex);
+        }
+    }
 }
