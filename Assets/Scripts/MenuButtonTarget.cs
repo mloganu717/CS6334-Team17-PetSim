@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public class MenuButtonTarget : MonoBehaviour
 {
-    public enum MenuAction // menu actions
+    public enum MenuAction
     {
         Destroy,
         Store,
@@ -14,9 +14,14 @@ public class MenuButtonTarget : MonoBehaviour
         Pet,
         ShowStats,
         Play,
-        Eat,
         Drink,
-        Sleep
+        Eat,
+        Sleep,
+
+        PhoneHome,
+        StartVetCall,
+        EndVetCall,
+        ClosePhone
     }
 
     [SerializeField] private MenuAction action;

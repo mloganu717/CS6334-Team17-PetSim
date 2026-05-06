@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class MainMenuController : MonoBehaviour
 {
     public Button[] menuButtons; // start and quit buttons
-    public string gameSceneName = "Team17";
+    public string gameSceneName = "Romik";
     private int index = 0;
     private float timer = 0;
 

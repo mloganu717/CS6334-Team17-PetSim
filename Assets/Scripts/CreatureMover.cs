@@ -204,16 +204,14 @@ using UnityEngine;
                 movement = Vector3.ProjectOnPlane(movement, m_Normal);
             }
 
-            private void Displace(float deltaTime, in Vector3 movement, bool isRun)
-            {
-                float alignment = Vector3.Dot(m_Transform.forward, movement.normalized);
-                float speedMultiplier = Mathf.Clamp01(alignment); // Only move forward if facing within 90 degrees
-                Vector3 displacement = (isRun ? m_RunSpeed : m_WalkSpeed) * movement * speedMultiplier;
-                displacement += m_GravityAcelleration;
-                displacement *= deltaTime;
+        private void Displace(float deltaTime, in Vector3 movement, bool isRun)
+        {
+            Vector3 displacement = (isRun ? m_RunSpeed : m_WalkSpeed) * movement;
+            displacement += m_GravityAcelleration;
+            displacement *= deltaTime;
 
-                m_Controller.Move(displacement);
-            }
+            m_Controller.Move(displacement);
+        }
 
             private void CaculateGravity(float deltaTime, out bool isAir)
             {

@@ -13,6 +13,7 @@ public class PlayerInteractionController : MonoBehaviour
     [SerializeField] private MovementSettings movementSettings;
     [SerializeField] private Transform holdParent;
     [SerializeField] private GameObject inventoryFullMessage;
+    [SerializeField] private PhoneUIManager phoneUIManager;
 
     [Header("Settings Menu UI")]
     [SerializeField] private GameObject settingsMenuCanvas;
@@ -59,6 +60,14 @@ public class PlayerInteractionController : MonoBehaviour
         if (inventoryUI != null && inventoryUI.IsInventoryOpen())
         {
             return; 
+        }
+
+        if (phoneUIManager != null && phoneUIManager.IsOpen)
+        {
+            if (Input.GetButtonDown(selectButton) || Input.GetButtonDown("Fire2"))
+                TrySelectCurrentMenuButton();
+
+            return;
         }
 
         if ((Input.GetButtonDown(settingsButton) || Input.GetButtonDown("js7") || Input.GetButtonDown("js0")) && heldObject == null)
@@ -162,6 +171,8 @@ public class PlayerInteractionController : MonoBehaviour
 
         currentOpenMenuObject = targetObject;
         currentOpenMenuObject.ShowMenu(true);
+
+        ShowFeedback("Selected " + GetObjectDisplayName(targetObject.gameObject) + ". Choose an option.");
     }
 
     private void CloseCurrentMenu()
@@ -184,35 +195,106 @@ public class PlayerInteractionController : MonoBehaviour
 
     private void TrySelectCurrentMenuButton()
     {
-        if (currentOpenMenuObject == null || playerRaycaster.CurrentMenuButton == null) return;
+        if (playerRaycaster.CurrentMenuButton == null)
+            return;
+
+        MenuButtonTarget.MenuAction action = playerRaycaster.CurrentMenuButton.Action;
+
+        // These buttons are allowed to work even when no object menu is open.
+        // This is needed for the big Phone UI screen.
+        switch (action)
+        {
+            case MenuButtonTarget.MenuAction.CallVet:
+                CallVet();
+                return;
+
+            case MenuButtonTarget.MenuAction.OrderFood:
+                OrderFood();
+                return;
+
+            case MenuButtonTarget.MenuAction.PhoneHome:
+                if (phoneUIManager != null)
+                    phoneUIManager.ShowHomeScreen();
+                return;
+
+            case MenuButtonTarget.MenuAction.StartVetCall:
+                if (phoneUIManager != null)
+                    phoneUIManager.StartVetCall();
+                return;
+
+            case MenuButtonTarget.MenuAction.EndVetCall:
+                if (phoneUIManager != null)
+                    phoneUIManager.EndVetCall();
+                return;
+
+            case MenuButtonTarget.MenuAction.ClosePhone:
+                if (phoneUIManager != null)
+                    phoneUIManager.ClosePhone();
+                return;
+        }
+
+        // Everything below this point requires an actual object menu to be open.
+        if (currentOpenMenuObject == null)
+            return;
+
         var catMenu = currentOpenMenuObject.GetComponent<CatObjectMenu>();
         if (catMenu == null)
             catMenu = currentOpenMenuObject.GetComponentInParent<CatObjectMenu>();
 
-        switch (playerRaycaster.CurrentMenuButton.Action)
+        switch (action)
         {
-            case MenuButtonTarget.MenuAction.Destroy: DestroyCurrentObject(); break;
-            case MenuButtonTarget.MenuAction.Store:   StoreCurrentObject();   break;
-            case MenuButtonTarget.MenuAction.Exit:    if (catMenu != null) catMenu.CloseMenu(); else CloseCurrentMenu(); break;
-            case MenuButtonTarget.MenuAction.Use:     UseCurrentObject();     break;
-            case MenuButtonTarget.MenuAction.CallVet: CallVet();            break;
-            case MenuButtonTarget.MenuAction.OrderFood: OrderFood();        break;
-            case MenuButtonTarget.MenuAction.Pet:      if (catMenu != null) catMenu.PetCat();      break;
-            case MenuButtonTarget.MenuAction.ShowStats: if (catMenu != null) catMenu.ShowStats();  break;
-            case MenuButtonTarget.MenuAction.Play:     if (catMenu != null) catMenu.PlayWithCat(); break;
+            case MenuButtonTarget.MenuAction.Destroy:
+                DestroyCurrentObject();
+                break;
+
+            case MenuButtonTarget.MenuAction.Store:
+                StoreCurrentObject();
+                break;
+
+            case MenuButtonTarget.MenuAction.Exit:
+                if (catMenu != null)
+                    catMenu.CloseMenu();
+                else
+                    CloseCurrentMenu();
+                break;
+
+            case MenuButtonTarget.MenuAction.Use:
+                UseCurrentObject();
+                break;
+
+            case MenuButtonTarget.MenuAction.Pet:
+                if (catMenu != null)
+                    catMenu.PetCat();
+                break;
+
+            case MenuButtonTarget.MenuAction.ShowStats:
+                if (catMenu != null)
+                    catMenu.ShowStats();
+                break;
+
+            case MenuButtonTarget.MenuAction.Play:
+                if (catMenu != null)
+                    catMenu.PlayWithCat();
+                break;
+
             case MenuButtonTarget.MenuAction.Drink:
                 var bowl = currentOpenMenuObject.GetComponent<WaterBowl>();
-                if (bowl != null) bowl.DrinkCommand();
+                if (bowl != null)
+                    bowl.DrinkCommand();
                 CloseCurrentMenu();
                 break;
+
             case MenuButtonTarget.MenuAction.Eat:
                 var foodBowl = currentOpenMenuObject.GetComponent<FoodBowl>();
-                if (foodBowl != null) foodBowl.EatCommand();
+                if (foodBowl != null)
+                    foodBowl.EatCommand();
                 CloseCurrentMenu();
                 break;
+
             case MenuButtonTarget.MenuAction.Sleep:
                 var bed = currentOpenMenuObject.GetComponent<PetBed>();
-                if (bed != null) bed.SleepCommand();
+                if (bed != null)
+                    bed.SleepCommand();
                 CloseCurrentMenu();
                 break;
         }
@@ -220,26 +302,28 @@ public class PlayerInteractionController : MonoBehaviour
 
     private void CallVet()
     {
-        if (currentOpenMenuObject == null) return;
-        var phone = currentOpenMenuObject.GetComponent<Phone>();
-        if (phone != null)
+        CloseCurrentObjectMenuOnly();
+
+        if (phoneUIManager != null)
         {
-            PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
-            if (pet != null) phone.CallVet(pet);
+            phoneUIManager.OpenVetCall();
         }
-        CloseCurrentMenu();
+        else
+        {
+            Debug.LogWarning("PhoneUIManager is not assigned on PlayerInteractionController.");
+        }
     }
 
     private void OrderFood()
     {
-        if (currentOpenMenuObject == null) return;
-        var phone = currentOpenMenuObject.GetComponent<Phone>();
-        if (phone != null)
+        CloseCurrentObjectMenuOnly();
+
+        Debug.Log("Order Food selected. Implement this later.");
+
+        if (phoneUIManager != null)
         {
-            PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
-            if (pet != null) phone.OrderFood(pet);
+            phoneUIManager.OpenHome();
         }
-        CloseCurrentMenu();
     }
 
     private void UseCurrentObject()
@@ -279,11 +363,15 @@ public class PlayerInteractionController : MonoBehaviour
         if (currentOpenMenuObject == null) return;
 
         StorableObject obj = currentOpenMenuObject;
+        string objectName = GetObjectDisplayName(obj.gameObject);
+
         obj.ShowMenu(false);
         currentOpenMenuObject = null;
 
         lastDestroyedObject = obj;
         obj.gameObject.SetActive(false);
+
+        ShowFeedback(objectName + " removed. Press A while pointing at the ground to spawn it again.");
     }
 
     private void StoreCurrentObject()
@@ -293,33 +381,43 @@ public class PlayerInteractionController : MonoBehaviour
         if (storedObjects.Count >= 3)
         {
             ShowInventoryFullMessage();
+            ShowFeedback("Inventory is full. You can only store 3 objects.");
             return;
         }
 
         StorableObject obj = currentOpenMenuObject;
+        string objectName = GetObjectDisplayName(obj.gameObject);
+
         obj.ShowMenu(false);
         currentOpenMenuObject = null;
 
         storedObjects.Add(obj);
         obj.gameObject.SetActive(false);
+
+        ShowFeedback(objectName + " stored in inventory.");
     }
 
     private void TryReleaseHeldObject()
     {
         if (heldObject == null || !playerRaycaster.IsHittingGround) return;
 
+        string objectName = GetObjectDisplayName(heldObject.gameObject);
+
         Vector3 releasePos = playerRaycaster.CurrentGroundPoint + new Vector3(0f, heldReleaseHeightOffset, 0f);
         heldObject.ReleaseFromCamera(releasePos);
         heldObject = null;
 
-        // Re-enable the laser pointer after releasing the object
         if (playerRaycaster != null)
             playerRaycaster.gameObject.SetActive(true);
+
+        ShowFeedback(objectName + " placed.");
     }
 
     private void TrySpawnLastDestroyedObject()
     {
         if (!playerRaycaster.IsHittingGround || lastDestroyedObject == null) return;
+
+        string objectName = GetObjectDisplayName(lastDestroyedObject.gameObject);
 
         lastDestroyedObject.gameObject.SetActive(true);
         Vector3 spawnPos = playerRaycaster.CurrentGroundPoint + new Vector3(0f, spawnHeightOffset, 0f);
@@ -327,6 +425,8 @@ public class PlayerInteractionController : MonoBehaviour
 
         Physics.SyncTransforms();
         lastDestroyedObject = null;
+
+        ShowFeedback(objectName + " spawned.");
     }
 
     public void SetMovementEnabled(bool enabled)
@@ -334,10 +434,6 @@ public class PlayerInteractionController : MonoBehaviour
         if (movementScript != null)
             movementScript.enabled = enabled;
     }
-
-
-
-
 
     private void ShowInventoryFullMessage()
     {
@@ -362,7 +458,7 @@ public class PlayerInteractionController : MonoBehaviour
     public void StartPlacement(StorableObject storable)
     {
         if (storable == null) return;
-        
+
         if (storedObjects.Contains(storable))
             storedObjects.Remove(storable);
 
@@ -370,10 +466,34 @@ public class PlayerInteractionController : MonoBehaviour
         storable.transform.SetParent(holdParent);
         storable.transform.localPosition = heldLocalOffset;
         storable.transform.localRotation = Quaternion.identity;
-        
+
         heldObject = storable;
 
-        if (playerRaycaster != null) 
+        if (playerRaycaster != null)
             playerRaycaster.gameObject.SetActive(false);
+
+        ShowFeedback("Holding " + GetObjectDisplayName(storable.gameObject) + ". Point at the ground and press A to place it.");
+    }
+
+    private void ShowFeedback(string message)
+    {
+        PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+        if (pet != null)
+        {
+            pet.RaiseFeedback(message);
+        }
+        else
+        {
+            Debug.Log(message);
+        }
+    }
+
+    private string GetObjectDisplayName(GameObject obj)
+    {
+        if (obj == null)
+            return "Object";
+
+        return obj.name.Replace("_", " ");
     }
 }

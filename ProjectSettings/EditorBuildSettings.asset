@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Team17.unity
     guid: 7ef042bdb70929c47bb834adde10e0e0
+  - enabled: 1
+    path: Assets/Scenes/Romik.unity
+    guid: 3eeba69f16a6b5344aaaa61bd7811c78
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 1ac7c9a356c9e7f4697ca8de8828780b, type: 2}

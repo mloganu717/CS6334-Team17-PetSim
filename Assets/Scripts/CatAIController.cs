@@ -30,6 +30,7 @@ public class CatAIController : MonoBehaviour
     [Header("Play")]
     [SerializeField] private float toyStopDistance = 0.8f;
     [SerializeField] private float playDuration = 8f;
+    [SerializeField] private float lowHappinessPlayThreshold = 45f;
 
     [Header("Needs")]
     [SerializeField] private float bowlStopDistance = 0.7f;
@@ -59,8 +60,27 @@ public class CatAIController : MonoBehaviour
         Flee, Busy, CommandedInteract
     }
 
+    private enum DesireType
+    {
+        None,
+        Food,
+        Water,
+        Litter,
+        Play
+    }
+
     private CatState _state = CatState.Wander;
     private CatState _busyReturnTo = CatState.Wander;
+
+    private bool _wasHungry;
+    private bool _wasThirsty;
+    private bool _wasNeedingLitter;
+    private bool _wasUnhappy;
+
+    private float _foodDesireTime = -999f;
+    private float _waterDesireTime = -999f;
+    private float _litterDesireTime = -999f;
+    private float _playDesireTime = -999f;
 
     private float _nextDecisionTime;
     private float _waitUntilTime;
@@ -154,10 +174,15 @@ public class CatAIController : MonoBehaviour
 
     private void DecideState()
     {
+        UpdateDesireTimestamps();
+
         if (_state == CatState.Busy || _state == CatState.CommandedInteract)
         {
             if (_state == CatState.Busy && Time.time >= _busyUntilTime)
+            {
                 TransitionTo(_busyReturnTo);
+            }
+
             return;
         }
 
@@ -169,32 +194,58 @@ public class CatAIController : MonoBehaviour
             return;
         }
 
-        switch (_needs.MostUrgentNeed)
-        {
-            case NeedType.Litter when _senses.NearestLitter != null:
-                TransitionTo(CatState.UseLitterBox); return;
-            case NeedType.Food when _senses.NearestFood != null:
-                TransitionTo(CatState.EatFood); return;
-            case NeedType.Water when _senses.NearestWater != null:
-                TransitionTo(CatState.DrinkWater); return;
-        }
+        DesireType desire = GetMostRecentActiveDesire();
 
-        if (_mood.Affinity >= _mood.playThreshold && _senses.NearestToy != null)
+        switch (desire)
         {
-            TransitionTo(CatState.PlayWithToy); return;
+            case DesireType.Food:
+                if (_senses.NearestFood != null)
+                {
+                    TransitionTo(CatState.EatFood);
+                    return;
+                }
+                break;
+
+            case DesireType.Water:
+                if (_senses.NearestWater != null)
+                {
+                    TransitionTo(CatState.DrinkWater);
+                    return;
+                }
+                break;
+
+            case DesireType.Litter:
+                if (_senses.NearestLitter != null)
+                {
+                    TransitionTo(CatState.UseLitterBox);
+                    return;
+                }
+                break;
+
+            case DesireType.Play:
+                if (_senses.NearestToy != null)
+                {
+                    TransitionTo(CatState.PlayWithToy);
+                    return;
+                }
+                break;
         }
 
         if (player != null && _mood.Affinity >= _mood.followThreshold)
         {
             float dist = DistanceTo(player);
+
             if (dist <= followDistance || Random.value < farFollowChance)
             {
-                TransitionTo(CatState.FollowPlayer); return;
+                TransitionTo(CatState.FollowPlayer);
+                return;
             }
         }
 
         if (_state != CatState.Wander)
+        {
             TransitionTo(CatState.Wander);
+        }
         else if (!_agent.hasPath || _agent.remainingDistance <= stopDistance + 0.2f)
         {
             _waitUntilTime = Time.time + Random.Range(idlePauseRange.x, idlePauseRange.y);
@@ -202,9 +253,88 @@ public class CatAIController : MonoBehaviour
         }
     }
 
+    private void UpdateDesireTimestamps()
+    {
+        PetStats petStats = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+        bool isHungry = _needs.IsHungry;
+        bool isThirsty = _needs.IsThirsty;
+        bool needsLitter = _needs.NeedsLitter;
+        bool isUnhappy = petStats != null && petStats.Happiness <= lowHappinessPlayThreshold;
+
+        if (isHungry && !_wasHungry)
+        {
+            _foodDesireTime = Time.time;
+            petStats?.RaiseFeedback("The cat is hungry.");
+        }
+
+        if (isThirsty && !_wasThirsty)
+        {
+            _waterDesireTime = Time.time;
+            petStats?.RaiseFeedback("The cat is thirsty.");
+        }
+
+        if (needsLitter && !_wasNeedingLitter)
+        {
+            _litterDesireTime = Time.time;
+            petStats?.RaiseFeedback("The cat needs the litter box.");
+        }
+
+        if (isUnhappy && !_wasUnhappy)
+        {
+            _playDesireTime = Time.time;
+            petStats?.RaiseFeedback("The cat is bored and wants to play.");
+        }
+
+        _wasHungry = isHungry;
+        _wasThirsty = isThirsty;
+        _wasNeedingLitter = needsLitter;
+        _wasUnhappy = isUnhappy;
+    }
+
+    private DesireType GetMostRecentActiveDesire()
+    {
+        PetStats petStats = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+        bool isHungry = _needs.IsHungry;
+        bool isThirsty = _needs.IsThirsty;
+        bool needsLitter = _needs.NeedsLitter;
+        bool isUnhappy = petStats != null && petStats.Happiness <= lowHappinessPlayThreshold;
+
+        DesireType newest = DesireType.None;
+        float newestTime = -999f;
+
+        if (isHungry && _foodDesireTime > newestTime)
+        {
+            newest = DesireType.Food;
+            newestTime = _foodDesireTime;
+        }
+
+        if (isThirsty && _waterDesireTime > newestTime)
+        {
+            newest = DesireType.Water;
+            newestTime = _waterDesireTime;
+        }
+
+        if (needsLitter && _litterDesireTime > newestTime)
+        {
+            newest = DesireType.Litter;
+            newestTime = _litterDesireTime;
+        }
+
+        if (isUnhappy && _playDesireTime > newestTime)
+        {
+            newest = DesireType.Play;
+            newestTime = _playDesireTime;
+        }
+
+        return newest;
+    }
+
     private void TransitionTo(CatState next)
     {
-        if (_state == next) return;
+        if (_state == next)
+            return;
 
         _state = next;
         _arrivedAtDestination = false;
@@ -213,29 +343,40 @@ public class CatAIController : MonoBehaviour
         switch (next)
         {
             case CatState.Flee:
+                PetStats.Instance?.RaiseFeedback("The cat got startled and ran away.");
                 SetFleeDestination();
                 break;
+
             case CatState.EatFood:
+                PetStats.Instance?.RaiseFeedback("The cat is going to the food bowl.");
                 if (_senses.NearestFood != null)
                     SetDestinationNear(_senses.NearestFood.position, bowlStopDistance, force: true);
                 break;
+
             case CatState.DrinkWater:
+                PetStats.Instance?.RaiseFeedback("The cat is going to the water bowl.");
                 if (_senses.NearestWater != null)
                     SetDestinationNear(_senses.NearestWater.position, bowlStopDistance, force: true);
                 break;
+
             case CatState.UseLitterBox:
+                PetStats.Instance?.RaiseFeedback("The cat is going to the litter box.");
                 if (_senses.NearestLitter != null)
                     SetDestinationNear(_senses.NearestLitter.position, litterStopDistance, force: true);
                 break;
+
             case CatState.PlayWithToy:
+                PetStats.Instance?.RaiseFeedback("The cat is going to play with the ball.");
                 if (_senses.NearestToy != null)
                     SetDestinationNear(_senses.NearestToy.position, toyStopDistance, force: true);
-                _waitUntilTime = Time.time + playDuration;
+                _waitUntilTime = 0f;
                 break;
+
             case CatState.CommandedInteract:
                 if (_commandTarget != null)
                     SetDestinationNear(_commandTarget.position, _commandStopDist, force: true);
                 break;
+
             case CatState.Wander:
                 PickNewWanderPoint();
                 break;
@@ -248,12 +389,16 @@ public class CatAIController : MonoBehaviour
         {
             case CatState.FollowPlayer when player != null:
                 SetDestinationNear(player.position, stopDistance);
-                if (DistanceTo(player) <= stopDistance + 0.3f)
+
+                if (HorizontalDistanceTo(player) <= stopDistance + 0.3f)
+                {
+                    _agent.ResetPath();
                     _waitUntilTime = Time.time + 0.5f;
+                }
                 break;
 
             case CatState.Flee:
-                if (!_agent.hasPath || _agent.remainingDistance < 0.5f)
+                if (!_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance < 0.5f))
                 {
                     _fleeAvailableTime = Time.time + fleeCooldown;
                     TransitionTo(CatState.Wander);
@@ -261,46 +406,102 @@ public class CatAIController : MonoBehaviour
                 break;
 
             case CatState.EatFood:
-                if (_senses.IsNearTarget(_senses.NearestFood, bowlStopDistance + 0.1f))
-                    StartBusy(eatDuration, CatState.Wander, () =>
+                if (_senses.NearestFood != null)
+                {
+                    SetDestinationNear(_senses.NearestFood.position, bowlStopDistance);
+
+                    if (ReachedCurrentDestination(bowlStopDistance + 0.25f))
                     {
-                        _needs.Eat();
-                        _mood.OnFed();
-                        PetStats.Instance?.ModifyStat("hunger", 30f);
-                    });
+                        StartBusy(eatDuration, CatState.Wander, () =>
+                        {
+                            _needs.Eat();
+                            _mood.OnFed();
+                            PetStats.Instance?.ModifyStat("hunger", 30f);
+                            PetStats.Instance?.RaiseFeedback("The cat ate from the food bowl.");
+                        });
+                    }
+                }
                 break;
 
             case CatState.DrinkWater:
-                if (_senses.IsNearTarget(_senses.NearestWater, bowlStopDistance + 0.1f))
-                    StartBusy(drinkDuration, CatState.Wander, () =>
+                if (_senses.NearestWater != null)
+                {
+                    SetDestinationNear(_senses.NearestWater.position, bowlStopDistance);
+
+                    if (ReachedCurrentDestination(bowlStopDistance + 0.25f))
                     {
-                        _needs.Drink();
-                        _mood.OnWatered();
-                        PetStats.Instance?.ModifyStat("thirst", 40f);
-                    });
+                        StartBusy(drinkDuration, CatState.Wander, () =>
+                        {
+                            _needs.Drink();
+                            _mood.OnWatered();
+                            PetStats.Instance?.ModifyStat("thirst", 40f);
+                            PetStats.Instance?.RaiseFeedback("The cat drank from the water bowl.");
+                        });
+                    }
+                }
                 break;
 
             case CatState.UseLitterBox:
-                if (_senses.IsNearTarget(_senses.NearestLitter, litterStopDistance + 0.1f))
-                    StartBusy(litterDuration, CatState.Wander, () => _needs.RelieveBladder());
+                if (_senses.NearestLitter != null)
+                {
+                    SetDestinationNear(_senses.NearestLitter.position, litterStopDistance);
+
+                    if (ReachedCurrentDestination(litterStopDistance + 0.25f))
+                    {
+                        StartBusy(litterDuration, CatState.Wander, () =>
+                        {
+                            _needs.RelieveBladder();
+                            PetStats.Instance?.ModifyStat("hygiene", 10f);
+                            PetStats.Instance?.RaiseFeedback("The cat used the litter box.");
+                        });
+                    }
+                }
                 break;
 
             case CatState.PlayWithToy:
                 if (_senses.NearestToy != null)
+                {
                     SetDestinationNear(_senses.NearestToy.position, toyStopDistance);
-                if (Time.time > _waitUntilTime)
-                    TransitionTo(CatState.Wander);
+
+                    if (ReachedCurrentDestination(toyStopDistance + 0.3f))
+                    {
+                        PetInteractable toy = _senses.NearestToy.GetComponentInParent<PetInteractable>();
+                        PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+                        StartBusy(playDuration, CatState.Wander, () =>
+                        {
+                            if (toy != null && pet != null)
+                            {
+                                toy.Interact(pet);
+                            }
+                            else if (pet != null)
+                            {
+                                pet.ModifyStat("happiness", 20f);
+                                pet.RaiseFeedback("The cat played and feels happier.");
+                            }
+                        });
+                    }
+                }
                 break;
 
             case CatState.CommandedInteract when _commandTarget != null:
                 SetDestinationNear(_commandTarget.position, _commandStopDist);
-                if (_senses.IsNearTarget(_commandTarget, _commandStopDist + 0.2f))
+
+                if (ReachedCurrentDestination(_commandStopDist + 0.3f))
                 {
                     var interactable = _commandInteractable;
                     var pet = _commandPetStats;
                     float busy = _commandBusyDuration;
+
                     ClearCommandedState();
-                    StartBusy(busy, CatState.Wander, () => interactable.Interact(pet));
+
+                    StartBusy(busy, CatState.Wander, () =>
+                    {
+                        if (interactable != null && pet != null)
+                        {
+                            interactable.Interact(pet);
+                        }
+                    });
                 }
                 break;
 
@@ -309,32 +510,88 @@ public class CatAIController : MonoBehaviour
                 break;
         }
 
-        Vector3 lookTarget = ComputeLookTarget();
+        Vector3 moveDirection = GetNavMoveDirection();
 
-        Vector3 moveDir = _agent.desiredVelocity;
-        moveDir.y = 0f;
-
-        if (moveDir.sqrMagnitude < 0.001f)
-        {
-            Vector3 steer = _agent.hasPath ? _agent.steeringTarget : transform.position;
-            moveDir = steer - transform.position;
-            moveDir.y = 0f;
-        }
-
-        // Rubbing: cat is stopped, facing slightly away from the object it nudged
         bool isRubbing = Time.time < _rubUntilTime;
         bool isWaiting = Time.time < _waitUntilTime || _state == CatState.Busy || isRubbing;
-        bool hasVelocity = _agent.velocity.sqrMagnitude > 0.04f;
-        bool shouldMove = !isWaiting && moveDir.magnitude > 0.1f && hasVelocity;
 
-        if (!shouldMove && player != null && _mood.IsFriendly)
-            lookTarget = player.position;
+        bool shouldMove =
+            !isWaiting &&
+            !_agent.pathPending &&
+            _agent.hasPath &&
+            moveDirection.sqrMagnitude > 0.01f;
+
+        Vector3 lookTarget;
+
+        if (shouldMove)
+        {
+            lookTarget = transform.position + moveDirection.normalized * 5f;
+        }
+        else
+        {
+            lookTarget = ComputeLookTarget();
+        }
 
         bool shouldRun =
             (_state == CatState.FollowPlayer && player != null && DistanceTo(player) > runDistance) ||
             _state == CatState.Flee;
 
-        _mover.SetInput(shouldMove ? new Vector2(0f, 1f) : Vector2.zero, lookTarget, shouldRun, false);
+        _mover.SetInput(
+            shouldMove ? new Vector2(0f, 1f) : Vector2.zero,
+            lookTarget,
+            shouldRun,
+            false
+        );
+    }
+
+    private Vector3 GetNavMoveDirection()
+    {
+        Vector3 targetPoint;
+
+        if (_agent.hasPath)
+        {
+            targetPoint = _agent.steeringTarget;
+        }
+        else
+        {
+            targetPoint = transform.position;
+        }
+
+        Vector3 direction = targetPoint - transform.position;
+        direction.y = 0f;
+
+        return direction;
+    }
+
+    private bool ReachedCurrentDestination(float allowedDistance)
+    {
+        if (_agent.pathPending)
+            return false;
+
+        if (!_agent.hasPath)
+            return false;
+
+        if (_agent.remainingDistance <= allowedDistance)
+            return true;
+
+        Vector3 destination = _agent.destination;
+        destination.y = transform.position.y;
+
+        return Vector3.Distance(transform.position, destination) <= allowedDistance;
+    }
+
+    private float HorizontalDistanceTo(Transform target)
+    {
+        if (target == null)
+            return Mathf.Infinity;
+
+        Vector3 a = transform.position;
+        Vector3 b = target.position;
+
+        a.y = 0f;
+        b.y = 0f;
+
+        return Vector3.Distance(a, b);
     }
 
     // Called every frame while wandering. Detects when the cat has reached its
