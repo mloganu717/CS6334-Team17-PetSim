@@ -18524,7 +18524,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96aebc78c47bf104ca69aa7499e4aa04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VetDialogueClient
-  backendBaseUrl: http://localhost:3000
+  backendBaseUrl: https://7895-24-27-5-46.ngrok-free.app
 --- !u!1 &2038394872
 GameObject:
   m_ObjectHideFlags: 0
