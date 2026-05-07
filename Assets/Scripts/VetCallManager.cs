@@ -9,6 +9,9 @@ public class VetCallManager : MonoBehaviour
     [SerializeField] private TMP_Text statusText;
     [SerializeField] private TMP_Text resultText;
     [SerializeField] private TMP_Text vetMessageText;
+    [SerializeField] private TMP_Text transcriptText;
+
+    [Header("Fallback Option UI")]
     [SerializeField] private TMP_Text[] optionTexts;
     [SerializeField] private GameObject[] optionButtons;
 
@@ -16,9 +19,14 @@ public class VetCallManager : MonoBehaviour
     [SerializeField] private GameObject startCallButton;
     [SerializeField] private GameObject endCallButton;
     [SerializeField] private GameObject homeButton;
+    [SerializeField] private GameObject startRecordingButton;
+    [SerializeField] private GameObject stopRecordingButton;
 
     [Header("Backend")]
     [SerializeField] private VetDialogueClient dialogueClient;
+
+    [Header("Voice")]
+    [SerializeField] private VetVoiceRecorder voiceRecorder;
 
     [Header("Fallback")]
     [SerializeField] private MedicineType fallbackPrescription = MedicineType.EnergyMedicine;
@@ -45,8 +53,17 @@ public class VetCallManager : MonoBehaviour
         if (vetMessageText != null)
             vetMessageText.text = "The virtual veterinarian is ready.";
 
+        if (transcriptText != null)
+            transcriptText.text = "You said: ";
+
         SetOptionsVisible(false);
-        SetCallControls(startVisible: true, endVisible: false, homeVisible: true);
+        SetCallControls(
+            startVisible: true,
+            endVisible: false,
+            homeVisible: true,
+            startRecordVisible: false,
+            stopRecordVisible: false
+        );
     }
 
     public void StartDemoVetCall()
@@ -65,10 +82,19 @@ public class VetCallManager : MonoBehaviour
         if (vetMessageText != null)
             vetMessageText.text = "";
 
-        SetOptionsVisible(false);
-        SetCallControls(startVisible: false, endVisible: true, homeVisible: true);
+        if (transcriptText != null)
+            transcriptText.text = "You said: ";
 
-        currentRoutine = StartCoroutine(RequestNextDialogue());
+        SetOptionsVisible(false);
+        SetCallControls(
+            startVisible: false,
+            endVisible: true,
+            homeVisible: true,
+            startRecordVisible: false,
+            stopRecordVisible: false
+        );
+
+        currentRoutine = StartCoroutine(RequestInitialDialogue());
     }
 
     public void EndVetCall()
@@ -77,11 +103,97 @@ public class VetCallManager : MonoBehaviour
 
         callActive = false;
 
+        if (voiceRecorder != null && voiceRecorder.IsRecording)
+        {
+            voiceRecorder.StopRecordingAndGetWav();
+        }
+
         if (statusText != null)
             statusText.text = "Call ended.";
 
         SetOptionsVisible(false);
-        SetCallControls(startVisible: true, endVisible: false, homeVisible: true);
+        SetCallControls(
+            startVisible: true,
+            endVisible: false,
+            homeVisible: true,
+            startRecordVisible: false,
+            stopRecordVisible: false
+        );
+    }
+
+    public void StartVoiceRecording()
+    {
+        if (!callActive)
+            return;
+
+        if (voiceRecorder == null)
+        {
+            if (statusText != null)
+                statusText.text = "Voice recorder is not assigned.";
+            return;
+        }
+
+        bool started = voiceRecorder.StartRecording();
+
+        if (started)
+        {
+            if (statusText != null)
+                statusText.text = "Recording... Press Stop Recording when finished.";
+
+            SetCallControls(
+                startVisible: false,
+                endVisible: true,
+                homeVisible: true,
+                startRecordVisible: false,
+                stopRecordVisible: true
+            );
+        }
+        else
+        {
+            if (statusText != null)
+                statusText.text = "Microphone permission needed. Try Start Recording again after accepting.";
+        }
+    }
+
+    public void StopVoiceRecording()
+    {
+        if (!callActive)
+            return;
+
+        if (voiceRecorder == null)
+            return;
+
+        byte[] wavBytes = voiceRecorder.StopRecordingAndGetWav();
+
+        if (wavBytes == null || wavBytes.Length == 0)
+        {
+            if (statusText != null)
+                statusText.text = "No audio recorded. Try again.";
+
+            SetCallControls(
+                startVisible: false,
+                endVisible: true,
+                homeVisible: true,
+                startRecordVisible: true,
+                stopRecordVisible: false
+            );
+
+            return;
+        }
+
+        if (statusText != null)
+            statusText.text = "Transcribing your response...";
+
+        SetCallControls(
+            startVisible: false,
+            endVisible: true,
+            homeVisible: true,
+            startRecordVisible: false,
+            stopRecordVisible: false
+        );
+
+        StopCurrentRoutine();
+        currentRoutine = StartCoroutine(RequestDialogueFromVoice(wavBytes));
     }
 
     public void SelectOption(int optionIndex)
@@ -102,16 +214,19 @@ public class VetCallManager : MonoBehaviour
 
         history.Add(new VetDialogueHistoryItem("player", selected));
 
+        if (transcriptText != null)
+            transcriptText.text = "You said: " + selected;
+
         if (statusText != null)
             statusText.text = "Sending response...";
 
         SetOptionsVisible(false);
 
         StopCurrentRoutine();
-        currentRoutine = StartCoroutine(RequestNextDialogue());
+        currentRoutine = StartCoroutine(RequestInitialDialogue());
     }
 
-    private IEnumerator RequestNextDialogue()
+    private IEnumerator RequestInitialDialogue()
     {
         if (dialogueClient == null)
         {
@@ -123,29 +238,59 @@ public class VetCallManager : MonoBehaviour
         request.history = history;
         request.petStats = GetPetStatsSnapshot();
 
-        bool done = false;
-        string error = null;
-        VetDialogueResponse response = null;
-
         yield return dialogueClient.GetNextDialogue(
             request,
-            r =>
+            HandleResponse,
+            error =>
             {
-                response = r;
-                done = true;
-            },
-            e =>
-            {
-                error = e;
-                done = true;
+                Debug.LogWarning("Vet backend failed: " + error);
+                UseLocalFallback();
             }
         );
+    }
 
-        if (!string.IsNullOrEmpty(error))
+    private IEnumerator RequestDialogueFromVoice(byte[] wavBytes)
+    {
+        if (dialogueClient == null)
         {
-            Debug.LogWarning("Vet backend failed: " + error);
             UseLocalFallback();
             yield break;
+        }
+
+        VetDialogueRequest request = new VetDialogueRequest();
+        request.history = history;
+        request.petStats = GetPetStatsSnapshot();
+
+        yield return dialogueClient.GetNextDialogueFromAudio(
+            wavBytes,
+            request,
+            HandleVoiceResponse,
+            error =>
+            {
+                Debug.LogWarning("Voice vet backend failed: " + error);
+
+                if (statusText != null)
+                    statusText.text = "Voice request failed. Try again.";
+
+                SetCallControls(
+                    startVisible: false,
+                    endVisible: true,
+                    homeVisible: true,
+                    startRecordVisible: true,
+                    stopRecordVisible: false
+                );
+            }
+        );
+    }
+
+    private void HandleVoiceResponse(VetDialogueResponse response)
+    {
+        if (response != null && !string.IsNullOrEmpty(response.userTranscript))
+        {
+            history.Add(new VetDialogueHistoryItem("player", response.userTranscript));
+
+            if (transcriptText != null)
+                transcriptText.text = "You said: " + response.userTranscript;
         }
 
         HandleResponse(response);
@@ -167,7 +312,11 @@ public class VetCallManager : MonoBehaviour
         }
 
         if (statusText != null)
-            statusText.text = response.isComplete ? "Vet consultation complete." : "Vet is waiting for your response.";
+        {
+            statusText.text = response.isComplete
+                ? "Vet consultation complete."
+                : "Vet is waiting for your voice response.";
+        }
 
         if (vetMessageText != null)
             vetMessageText.text = response.vetMessage;
@@ -176,35 +325,38 @@ public class VetCallManager : MonoBehaviour
         {
             callActive = false;
             SetOptionsVisible(false);
+
+            SetCallControls(
+                startVisible: true,
+                endVisible: false,
+                homeVisible: true,
+                startRecordVisible: false,
+                stopRecordVisible: false
+            );
+
             ApplyPrescription(response.prescription, response.feedback);
         }
         else
         {
             ShowOptions(response.playerOptions);
+
+            SetCallControls(
+                startVisible: false,
+                endVisible: true,
+                homeVisible: true,
+                startRecordVisible: true,
+                stopRecordVisible: false
+            );
         }
+
         RefreshVisibleButtonColliders();
     }
 
     private void ShowOptions(string[] options)
     {
-        if (options == null)
-        {
-            SetOptionsVisible(false);
-            return;
-        }
-
-        for (int i = 0; i < optionButtons.Length; i++)
-        {
-            bool visible = i < options.Length;
-
-            if (optionButtons[i] != null)
-                optionButtons[i].SetActive(visible);
-
-            if (visible && i < optionTexts.Length && optionTexts[i] != null)
-                optionTexts[i].text = options[i];
-        }
-
-        RefreshVisibleButtonColliders();
+        // For voice mode, keep option buttons hidden.
+        // Leave this method here as fallback if you want to re-enable text choices later.
+        SetOptionsVisible(false);
     }
 
     private void SetOptionsVisible(bool visible)
@@ -219,7 +371,12 @@ public class VetCallManager : MonoBehaviour
         }
     }
 
-    private void SetCallControls(bool startVisible, bool endVisible, bool homeVisible)
+    private void SetCallControls(
+        bool startVisible,
+        bool endVisible,
+        bool homeVisible,
+        bool startRecordVisible,
+        bool stopRecordVisible)
     {
         if (startCallButton != null)
             startCallButton.SetActive(startVisible);
@@ -230,20 +387,13 @@ public class VetCallManager : MonoBehaviour
         if (homeButton != null)
             homeButton.SetActive(homeVisible);
 
+        if (startRecordingButton != null)
+            startRecordingButton.SetActive(startRecordVisible);
+
+        if (stopRecordingButton != null)
+            stopRecordingButton.SetActive(stopRecordVisible);
+
         RefreshVisibleButtonColliders();
-    }
-
-    private void RefreshVisibleButtonColliders()
-    {
-        Canvas.ForceUpdateCanvases();
-
-        MenuButtonTarget[] buttons = GetComponentsInChildren<MenuButtonTarget>(true);
-
-        foreach (MenuButtonTarget button in buttons)
-        {
-            if (button.gameObject.activeInHierarchy)
-                button.UpdateBoxCollider();
-        }
     }
 
     private VetPetStatsSnapshot GetPetStatsSnapshot()
@@ -331,6 +481,14 @@ public class VetCallManager : MonoBehaviour
 
         SetOptionsVisible(false);
 
+        SetCallControls(
+            startVisible: true,
+            endVisible: false,
+            homeVisible: true,
+            startRecordVisible: false,
+            stopRecordVisible: false
+        );
+
         ApplyPrescription(fallbackPrescription.ToString(), "Fallback prescription applied.");
     }
 
@@ -340,6 +498,19 @@ public class VetCallManager : MonoBehaviour
         {
             StopCoroutine(currentRoutine);
             currentRoutine = null;
+        }
+    }
+
+    private void RefreshVisibleButtonColliders()
+    {
+        Canvas.ForceUpdateCanvases();
+
+        MenuButtonTarget[] buttons = GetComponentsInChildren<MenuButtonTarget>(true);
+
+        foreach (MenuButtonTarget button in buttons)
+        {
+            if (button.gameObject.activeInHierarchy)
+                button.UpdateBoxCollider();
         }
     }
 }

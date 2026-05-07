@@ -25,7 +25,10 @@ public class MenuButtonTarget : MonoBehaviour
 
         VetOption0,
         VetOption1,
-        VetOption2
+        VetOption2,
+
+        StartVoiceRecording,
+        StopVoiceRecording
     }
 
     [SerializeField] private MenuAction action;

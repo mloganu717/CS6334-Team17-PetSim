@@ -39,4 +39,5 @@ public class VetDialogueResponse
     public bool isComplete;
     public string prescription;
     public string feedback;
+    public string userTranscript;
 }

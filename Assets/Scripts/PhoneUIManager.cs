@@ -196,4 +196,20 @@ public class PhoneUIManager : MonoBehaviour
             vetCallManager.SelectOption(optionIndex);
         }
     }
+
+    public void StartVoiceRecording()
+    {
+        if (vetCallManager != null)
+        {
+            vetCallManager.StartVoiceRecording();
+        }
+    }
+
+    public void StopVoiceRecording()
+    {
+        if (vetCallManager != null)
+        {
+            vetCallManager.StopVoiceRecording();
+        }
+    }
 }

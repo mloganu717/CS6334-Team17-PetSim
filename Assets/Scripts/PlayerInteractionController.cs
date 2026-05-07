@@ -227,6 +227,16 @@ public class PlayerInteractionController : MonoBehaviour
                     phoneUIManager.EndVetCall();
                 return;
 
+            case MenuButtonTarget.MenuAction.StartVoiceRecording:
+                if (phoneUIManager != null)
+                    phoneUIManager.StartVoiceRecording();
+                return;
+
+            case MenuButtonTarget.MenuAction.StopVoiceRecording:
+                if (phoneUIManager != null)
+                    phoneUIManager.StopVoiceRecording();
+                return;
+
             case MenuButtonTarget.MenuAction.ClosePhone:
                 if (phoneUIManager != null)
                     phoneUIManager.ClosePhone();
