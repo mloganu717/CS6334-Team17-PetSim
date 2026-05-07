@@ -1,8 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-
-// pet stats
 public class PetStats : MonoBehaviour
 {
     public static PetStats Instance { get; private set; }
@@ -30,6 +28,9 @@ public class PetStats : MonoBehaviour
     public float Energy => energy;
     public float Hygiene => hygiene;
 
+    // Average of all five stats — useful for overall wellness checks
+    public float OverallHealth => (hunger + thirst + happiness + energy + hygiene) / 5f;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -42,22 +43,22 @@ public class PetStats : MonoBehaviour
 
     private void Update()
     {
-        hunger    = Mathf.Max(0, hunger    - hungerDecay    * Time.deltaTime);
-        thirst    = Mathf.Max(0, thirst    - thirstDecay    * Time.deltaTime);
+        hunger = Mathf.Max(0, hunger - hungerDecay * Time.deltaTime);
+        thirst = Mathf.Max(0, thirst - thirstDecay * Time.deltaTime);
         happiness = Mathf.Max(0, happiness - happinessDecay * Time.deltaTime);
-        energy    = Mathf.Max(0, energy    - energyDecay    * Time.deltaTime);
-        hygiene   = Mathf.Max(0, hygiene   - hygieneDecay   * Time.deltaTime);
+        energy = Mathf.Max(0, energy - energyDecay * Time.deltaTime);
+        hygiene = Mathf.Max(0, hygiene - hygieneDecay * Time.deltaTime);
     }
 
     public void ModifyStat(string stat, float amount)
     {
         switch (stat)
         {
-            case "hunger":    hunger    = Mathf.Clamp(hunger    + amount, 0, 100); break;
-            case "thirst":    thirst    = Mathf.Clamp(thirst    + amount, 0, 100); break;
+            case "hunger": hunger = Mathf.Clamp(hunger + amount, 0, 100); break;
+            case "thirst": thirst = Mathf.Clamp(thirst + amount, 0, 100); break;
             case "happiness": happiness = Mathf.Clamp(happiness + amount, 0, 100); break;
-            case "energy":    energy    = Mathf.Clamp(energy    + amount, 0, 100); break;
-            case "hygiene":   hygiene   = Mathf.Clamp(hygiene   + amount, 0, 100); break;
+            case "energy": energy = Mathf.Clamp(energy + amount, 0, 100); break;
+            case "hygiene": hygiene = Mathf.Clamp(hygiene + amount, 0, 100); break;
         }
     }
 
