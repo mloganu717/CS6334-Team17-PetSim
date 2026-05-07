@@ -73,6 +73,12 @@ public class WaterBowl : PetInteractable
 
     public void DrinkCommand()
     {
+        if (Time.time < _nextUseTime)
+        {
+            PetStats.Instance?.RaiseFeedback("The water bowl is empty! Quick interact to refill.");
+            return;
+        }
+
         if (Cat == null) return;
 
         PetStats pet = PetStats.Instance != null

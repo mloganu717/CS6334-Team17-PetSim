@@ -35,7 +35,7 @@ public class FoodBowl : PetInteractable
 
     private void Awake()
     {
-        _servingsLeft = maxServings;
+        _servingsLeft = 0;
 
         if (foodMesh == null)
         {
@@ -70,9 +70,15 @@ public class FoodBowl : PetInteractable
             _catAudioSource.PlayOneShot(eatingClip, eatingSoundVolume);
     }
 
-    /// <summary>Called from the object menu Eat button — sends cat to bowl.</summary>
+    /// <summary>Should fill bowl</summary>
     public void EatCommand()
     {
+        if (_servingsLeft <= 0)
+        {
+            PetStats.Instance?.RaiseFeedback("The food bowl is empty! Quick interact to refill.");
+            return;
+        }
+
         if (Cat == null) return;
 
         PetStats pet = PetStats.Instance != null
