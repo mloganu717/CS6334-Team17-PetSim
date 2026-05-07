@@ -3249,20 +3249,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9da4f2e21b6f4e4b88ba12ee7490f99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VetCallManager
-  statusText: {fileID: 0}
-  resultText: {fileID: 0}
-  vetMessageText: {fileID: 0}
-  transcriptText: {fileID: 0}
-  optionTexts: []
-  optionButtons: []
-  startCallButton: {fileID: 0}
-  endCallButton: {fileID: 0}
-  homeButton: {fileID: 0}
-  startRecordingButton: {fileID: 0}
-  stopRecordingButton: {fileID: 0}
-  dialogueClient: {fileID: 0}
-  voiceRecorder: {fileID: 0}
-  fallbackPrescription: 3
 --- !u!1 &294514303
 GameObject:
   m_ObjectHideFlags: 0
@@ -5449,7 +5435,8 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2011295638}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 4342194796296073994, guid: 7d36e7b4ee2d82b4f99c90420adfdde7, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7d36e7b4ee2d82b4f99c90420adfdde7, type: 3}
@@ -20844,8 +20831,14 @@ PrefabInstance:
       propertyPath: m_Material
       value: 
       objectReference: {fileID: 379446258}
+    - target: {fileID: 9219081984467115460, guid: c1d5fb12c525e3248ad03ed93726b4e9, type: 3}
+      propertyPath: m_text
+      value: Fill Bowl
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 6431006438791782318, guid: c1d5fb12c525e3248ad03ed93726b4e9, type: 3}
+    - {fileID: 1738648330752564691, guid: c1d5fb12c525e3248ad03ed93726b4e9, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c1d5fb12c525e3248ad03ed93726b4e9, type: 3}
@@ -20862,6 +20855,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1818536755}
     m_Modifications:
+    - target: {fileID: 876376267186544264, guid: 5b0d9d4ecbaf21e45ac5bf45e328edd9, type: 3}
+      propertyPath: m_text
+      value: Fill Bowl
+      objectReference: {fileID: 0}
     - target: {fileID: 2443889133907532163, guid: 5b0d9d4ecbaf21e45ac5bf45e328edd9, type: 3}
       propertyPath: m_Material
       value: 
@@ -20947,7 +20944,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 9139978027760468677, guid: 5b0d9d4ecbaf21e45ac5bf45e328edd9, type: 3}
+    - {fileID: 5188308873661862392, guid: 5b0d9d4ecbaf21e45ac5bf45e328edd9, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5b0d9d4ecbaf21e45ac5bf45e328edd9, type: 3}
