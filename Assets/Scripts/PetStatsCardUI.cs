@@ -9,6 +9,7 @@ public class PetStatsCardUI : MonoBehaviour
     {
         public Image fillImage;
         public TMP_Text valueText;
+        public Text valueTextLegacy;
 
         public void UpdateRow(float value)
         {
@@ -20,11 +21,19 @@ public class PetStatsCardUI : MonoBehaviour
                 fillImage.fillMethod = Image.FillMethod.Horizontal;
                 fillImage.fillOrigin = 0;
                 fillImage.fillAmount = value / 100f;
+                fillImage.color = GetStatBarColor(fillImage.fillAmount);
             }
 
+            string s = value.ToString("F1") + "%";
             if (valueText != null)
             {
-                valueText.text = Mathf.RoundToInt(value).ToString();
+                valueText.text = s;
+                if (valueText is TextMeshProUGUI ugui)
+                    ugui.ForceMeshUpdate(true);
+            }
+            else if (valueTextLegacy != null)
+            {
+                valueTextLegacy.text = s;
             }
         }
     }
@@ -67,6 +76,18 @@ public class PetStatsCardUI : MonoBehaviour
         AutoBindRow(happinessRow, "StatsContainer/HappinessRow");
         AutoBindRow(hygieneRow, "StatsContainer/HygieneRow");
         AutoBindRow(energyRow, "StatsContainer/EnergyRow");
+
+        // Alternate layout: StatsContainer is not parent of rows
+        if (hungerRow.fillImage == null)
+            AutoBindRow(hungerRow, "HungerRow");
+        if (thirstRow.fillImage == null)
+            AutoBindRow(thirstRow, "ThirstRow");
+        if (happinessRow.fillImage == null)
+            AutoBindRow(happinessRow, "HappinessRow");
+        if (hygieneRow.fillImage == null)
+            AutoBindRow(hygieneRow, "HygieneRow");
+        if (energyRow.fillImage == null)
+            AutoBindRow(energyRow, "EnergyRow");
     }
 
     private void AutoBindRow(StatRow row, string rowPath)
@@ -82,26 +103,41 @@ public class PetStatsCardUI : MonoBehaviour
         if (row.fillImage == null)
         {
             Transform fillTransform = rowTransform.Find("BarBG/Fill");
+            if (fillTransform == null)
+                fillTransform = FindNamedDescendant(rowTransform, "Fill");
 
             if (fillTransform != null)
-            {
                 row.fillImage = fillTransform.GetComponent<Image>();
-            }
         }
 
-        if (row.valueText == null)
+        if (row.valueText == null && row.valueTextLegacy == null)
         {
-            Transform valueTransform = rowTransform.Find("ValueText");
+            Transform valueTransform = FindNamedDescendant(rowTransform, "ValueText");
 
             if (valueTransform != null)
             {
-                row.valueText = valueTransform.GetComponent<TMP_Text>();
+                var ugui = valueTransform.GetComponent<TextMeshProUGUI>()
+                    ?? valueTransform.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (ugui != null)
+                    row.valueText = ugui;
+                else
+                {
+                    row.valueText = valueTransform.GetComponent<TMP_Text>()
+                        ?? valueTransform.GetComponentInChildren<TMP_Text>(true);
+                    if (row.valueText == null)
+                    {
+                        row.valueTextLegacy = valueTransform.GetComponent<Text>()
+                            ?? valueTransform.GetComponentInChildren<Text>(true);
+                    }
+                }
             }
         }
     }
 
     private void UpdateVisuals()
     {
+        TryAutoFindReferences();
+
         if (petStats == null)
         {
             petStats = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
@@ -115,5 +151,23 @@ public class PetStatsCardUI : MonoBehaviour
         happinessRow.UpdateRow(petStats.Happiness);
         hygieneRow.UpdateRow(petStats.Hygiene);
         energyRow.UpdateRow(petStats.Energy);
+    }
+
+    private static Transform FindNamedDescendant(Transform root, string exactName)
+    {
+        if (root == null) return null;
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == exactName)
+                return t;
+        }
+        return null;
+    }
+
+    private static Color GetStatBarColor(float fillAmount)
+    {
+        if (fillAmount > 0.6f) return Color.green;
+        if (fillAmount > 0.3f) return new Color(1f, 0.64f, 0f);
+        return Color.red;
     }
 }

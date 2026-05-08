@@ -1296,7 +1296,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 50fbd10abb1bf674981c5e42d73e5f3e, type: 3}
       propertyPath: m_TagString
-      value: Interactable
+      value: CatToy
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

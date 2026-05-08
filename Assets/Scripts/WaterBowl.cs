@@ -1,15 +1,8 @@
 using UnityEngine;
 
-/// <summary>
-/// Water bowl — restores the pet's thirst when the cat walks over and drinks.
-///
-/// CHANGES FROM ORIGINAL:
-///  - Cat ref cached lazily.
-///  - DrinkCommand uses GoToAndInteract().
-/// </summary>
 public class WaterBowl : PetInteractable
 {
-    [SerializeField] private float     thirstRestore = 40f;
+    [SerializeField] private float     thirstRestore = 100f;
     [SerializeField] private float     cooldown      = 5f;
     [SerializeField] private Transform waterMesh;
 
@@ -41,8 +34,21 @@ public class WaterBowl : PetInteractable
 
     private void Start()
     {
+        EnsureCatAudioSource();
+    }
+
+    private void EnsureCatAudioSource()
+    {
+        if (_catAudioSource != null) return;
         if (Cat != null)
             _catAudioSource = Cat.GetComponent<AudioSource>();
+    }
+
+    public void PlayDrinkAudio()
+    {
+        EnsureCatAudioSource();
+        if (drinkingClip != null && _catAudioSource != null)
+            _catAudioSource.PlayOneShot(drinkingClip, 10f);
     }
 
     private void Update()
@@ -63,12 +69,12 @@ public class WaterBowl : PetInteractable
             return;
         }
 
+        FindAnyObjectByType<CatNeeds>()?.Drink();
         pet.ModifyStat("thirst", thirstRestore);
         _nextUseTime = Time.time + cooldown;
         pet.RaiseFeedback($"The pet drank! Thirst +{thirstRestore}. Refilling in {cooldown}s...");
 
-        if (drinkingClip != null && _catAudioSource != null)
-            _catAudioSource.PlayOneShot(drinkingClip, 10f);
+        PlayDrinkAudio();
     }
 
     public void DrinkCommand()
@@ -89,7 +95,12 @@ public class WaterBowl : PetInteractable
             Cat.GoToAndInteract(transform, this, pet, catStopDistance, 4f);
     }
 
-    public override void PlayerQuickInteract() => Refill();
+    public override void PlayerQuickInteract()
+    {
+        Refill();
+        PetStats p = PetStats.Instance ?? FindAnyObjectByType<PetStats>();
+        p?.RaiseFeedback("Water ready. Thirst goes up when the cat drinks (menu or autonomous), not from refilling alone.");
+    }
 
     public void Refill()
     {

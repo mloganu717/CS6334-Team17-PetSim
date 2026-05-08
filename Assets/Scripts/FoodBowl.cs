@@ -1,16 +1,8 @@
 using UnityEngine;
 
-/// <summary>
-/// Food bowl — restores the pet's hunger, limited servings before needing a refill.
-///
-/// CHANGES FROM ORIGINAL:
-///  - Cat reference is resolved lazily once and cached (not found every EatCommand call).
-///  - EatCommand() uses GoToAndInteract() which now exists on CatAIController.
-///  - Removed duplicate Awake/Start logic; everything initialises in Awake.
-/// </summary>
 public class FoodBowl : PetInteractable
 {
-    [SerializeField] private float hungerRestore = 30f;
+    [SerializeField] private float hungerRestore = 100f;
     [SerializeField] private int   maxServings   = 3;
     [SerializeField] private Transform foodMesh;
 
@@ -46,10 +38,23 @@ public class FoodBowl : PetInteractable
         if (foodMesh != null)
             _initialMeshScale = foodMesh.localScale;
 
-        if (Cat != null)
-            _catAudioSource = Cat.GetComponent<AudioSource>();
+        EnsureCatAudioSource();
 
         UpdateVisuals();
+    }
+
+    private void EnsureCatAudioSource()
+    {
+        if (_catAudioSource != null) return;
+        if (Cat != null)
+            _catAudioSource = Cat.GetComponent<AudioSource>();
+    }
+
+    public void PlayEatAudio()
+    {
+        EnsureCatAudioSource();
+        if (eatingClip != null && _catAudioSource != null)
+            _catAudioSource.PlayOneShot(eatingClip, eatingSoundVolume);
     }
 
     public override void Interact(PetStats pet)
@@ -57,20 +62,19 @@ public class FoodBowl : PetInteractable
         if (_servingsLeft <= 0)
         {
             Refill();
-            pet.RaiseFeedback("You refilled the food bowl!");
+            pet.RaiseFeedback("You refilled the food bowl. ");
             return;
         }
 
+        FindAnyObjectByType<CatNeeds>()?.Eat();
         pet.ModifyStat("hunger", hungerRestore);
         _servingsLeft--;
         pet.RaiseFeedback($"The pet ate! Hunger +{hungerRestore} ({_servingsLeft} servings left)");
         UpdateVisuals();
 
-        if (eatingClip != null && _catAudioSource != null)
-            _catAudioSource.PlayOneShot(eatingClip, eatingSoundVolume);
+        PlayEatAudio();
     }
 
-    /// <summary>Should fill bowl</summary>
     public void EatCommand()
     {
         if (_servingsLeft <= 0)
@@ -89,7 +93,12 @@ public class FoodBowl : PetInteractable
             Cat.GoToAndInteract(transform, this, pet, catStopDistance, 4f);
     }
 
-    public override void PlayerQuickInteract() => Refill();
+    public override void PlayerQuickInteract()
+    {
+        Refill();
+        PetStats p = PetStats.Instance ?? FindAnyObjectByType<PetStats>();
+        p?.RaiseFeedback("Food bowl refilled.");
+    }
 
     public void Refill()
     {

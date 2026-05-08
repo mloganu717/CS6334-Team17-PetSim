@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class GroomingBrush : PetInteractable
 {
-    [SerializeField] private float hygieneGain = 25f;
-    [SerializeField] private float happinessGain = 10f;
+    [SerializeField] private float hygieneGain = 100f;
+    [SerializeField] private float happinessGain = 100f;
     [SerializeField] private float cooldown = 8f;
 
     private float _nextUseTime;

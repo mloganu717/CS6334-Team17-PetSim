@@ -433,27 +433,27 @@ public class VetCallManager : MonoBehaviour
                 break;
 
             case MedicineType.HungerMedicine:
-                pet.ModifyStat("hunger", 50f);
+                pet.ModifyStat("hunger", 100f);
                 pet.RaiseFeedback("Vet prescribed Hunger Medicine.");
                 break;
 
             case MedicineType.ThirstMedicine:
-                pet.ModifyStat("thirst", 50f);
+                pet.ModifyStat("thirst", 100f);
                 pet.RaiseFeedback("Vet prescribed Hydration Drops.");
                 break;
 
             case MedicineType.EnergyMedicine:
-                pet.ModifyStat("energy", 50f);
+                pet.ModifyStat("energy", 100f);
                 pet.RaiseFeedback("Vet prescribed Energy Medicine.");
                 break;
 
             case MedicineType.HappinessMedicine:
-                pet.ModifyStat("happiness", 50f);
+                pet.ModifyStat("happiness", 100f);
                 pet.RaiseFeedback("Vet prescribed Happiness Medicine.");
                 break;
 
             case MedicineType.HygieneMedicine:
-                pet.ModifyStat("hygiene", 50f);
+                pet.ModifyStat("hygiene", 100f);
                 pet.RaiseFeedback("Vet prescribed Hygiene Medicine.");
                 break;
         }

@@ -2,28 +2,46 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 
-// displays feedback messages
 public class FeedbackDisplay : MonoBehaviour
 {
     [SerializeField] private TMP_Text feedbackText;
     [SerializeField] private float displayDuration = 3f;
 
     private Coroutine hideCoroutine;
+    private PetStats _subscribedStats;
 
-    private void Start()
+    private void OnEnable()
     {
         if (feedbackText != null)
             feedbackText.gameObject.SetActive(false);
-
-        //petstats feedback event
-        if (PetStats.Instance != null)
-            PetStats.Instance.OnFeedback.AddListener(ShowMessage);
+        TrySubscribeFeedback();
     }
 
-    private void OnDestroy()
+    private void LateUpdate()
     {
-        if (PetStats.Instance != null)
-            PetStats.Instance.OnFeedback.RemoveListener(ShowMessage);
+        TrySubscribeFeedback();
+    }
+
+    private void TrySubscribeFeedback()
+    {
+        if (_subscribedStats != null)
+            return;
+
+        PetStats p = PetStats.Instance ?? FindAnyObjectByType<PetStats>();
+        if (p == null)
+            return;
+
+        _subscribedStats = p;
+        _subscribedStats.OnFeedback.AddListener(ShowMessage);
+    }
+
+    private void OnDisable()
+    {
+        if (_subscribedStats != null)
+        {
+            _subscribedStats.OnFeedback.RemoveListener(ShowMessage);
+            _subscribedStats = null;
+        }
     }
 
     public void ShowMessage(string message)

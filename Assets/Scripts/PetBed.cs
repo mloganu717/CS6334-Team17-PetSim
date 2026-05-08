@@ -1,15 +1,8 @@
 using UnityEngine;
 
-/// <summary>
-/// Pet bed — cat walks over and sleeps; restores energy.
-///
-/// CHANGES FROM ORIGINAL:
-///  - Cat ref cached lazily.
-///  - SleepCommand uses GoToAndInteract().
-/// </summary>
 public class PetBed : PetInteractable
 {
-    [SerializeField] private float energyRestore = 50f;
+    [SerializeField] private float energyRestore = 100f;
     [SerializeField] private float cooldown      = 10f;
 
     [Header("Sleeping")]
@@ -33,8 +26,21 @@ public class PetBed : PetInteractable
 
     private void Start()
     {
+        EnsureCatAudioSource();
+    }
+
+    private void EnsureCatAudioSource()
+    {
+        if (_catAudioSource != null) return;
         if (Cat != null)
             _catAudioSource = Cat.GetComponent<AudioSource>();
+    }
+
+    public void PlaySleepAudio()
+    {
+        EnsureCatAudioSource();
+        if (sleepingClip != null && _catAudioSource != null)
+            _catAudioSource.PlayOneShot(sleepingClip, sleepingSoundVolume);
     }
 
     public override void Interact(PetStats pet)
@@ -49,8 +55,7 @@ public class PetBed : PetInteractable
         _nextUseTime = Time.time + cooldown;
         pet.RaiseFeedback($"The pet took a nap! Energy +{energyRestore}");
 
-        if (sleepingClip != null && _catAudioSource != null)
-            _catAudioSource.PlayOneShot(sleepingClip, sleepingSoundVolume);
+        PlaySleepAudio();
     }
 
     /// <summary>Called from the object menu Send to Bed button.</summary>

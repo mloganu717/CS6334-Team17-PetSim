@@ -1,17 +1,10 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>
-/// Toy ball — playing boosts happiness but costs energy.
-///
-/// CHANGES FROM ORIGINAL:
-///  - Removed duplicate Awake (rb / cat were assigned twice).
-///  - Cat ref cached lazily via property so hot-paths don't re-scan.
-///  - SendCatToBallAfterDelay uses GoToAndInteract().
-/// </summary>
+
 public class ToyBall : PetInteractable
 {
-    [SerializeField] private float happinessGain    = 20f;
+    [SerializeField] private float happinessGain    = 100f;
     [SerializeField] private float energyCost       = 10f;
     [SerializeField] private float minEnergyRequired = 10f;
 
@@ -40,8 +33,7 @@ public class ToyBall : PetInteractable
     {
         _rb = GetComponent<Rigidbody>();
 
-        if (Cat != null)
-            _catAudioSource = Cat.GetComponent<AudioSource>();
+        EnsureCatAudioSource();
 
         var menus = GetComponentsInChildren<Canvas>(true);
         if (menus.Length > 0) _ballMenu = menus[0];
@@ -59,6 +51,22 @@ public class ToyBall : PetInteractable
         }
     }
 
+    private void EnsureCatAudioSource()
+    {
+        if (_catAudioSource != null) return;
+        if (Cat != null)
+            _catAudioSource = Cat.GetComponent<AudioSource>();
+    }
+
+    public void PlayInteractAudio()
+    {
+        EnsureCatAudioSource();
+        if (meowClip != null && _catAudioSource != null)
+            _catAudioSource.PlayOneShot(meowClip);
+        if (boingClip != null)
+            AudioSource.PlayClipAtPoint(boingClip, transform.position, 0.85f);
+    }
+
     public void KickBall(Vector3 direction)
     {
         // Hide any open menus
@@ -68,7 +76,9 @@ public class ToyBall : PetInteractable
         _rb.linearVelocity = Vector3.zero;
         _rb.AddForce(direction.normalized * pushForce, ForceMode.Impulse);
 
-        AudioSource.PlayClipAtPoint(boingClip, transform.position, 100f);
+        EnsureCatAudioSource();
+        if (boingClip != null)
+            AudioSource.PlayClipAtPoint(boingClip, transform.position, 1f);
 
         if (meowClip != null && _catAudioSource != null)
             _catAudioSource.PlayOneShot(meowClip);
@@ -99,6 +109,7 @@ public class ToyBall : PetInteractable
         pet.ModifyStat("happiness", happinessGain);
         pet.ModifyStat("energy",   -energyCost);
         pet.RaiseFeedback($"The pet played with the ball! Happiness +{happinessGain}");
+        PlayInteractAudio();
     }
 
     public override void PlayerQuickInteract()

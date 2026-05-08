@@ -31,11 +31,40 @@ public class SettingsMenu : MonoBehaviour
     public GameObject petStatsCard;
     public GameObject settingsMenuContainer;
 
-    private Image[] statFillImages;
-    private TMPro.TMP_Text[] statValueTexts;
+    [SerializeField] private XRCardboardController xrCardboardController;
+
     private bool petStatsCardOpen;
     private bool openedFromCat = false;
     private float petStatsOpenTime;
+
+    private void Awake()
+    {
+        if (xrCardboardController == null)
+            xrCardboardController = FindAnyObjectByType<XRCardboardController>();
+
+        if (playerInteractionController != null && playerInteractionController.PlayerMovement != null)
+            characterMovement = playerInteractionController.PlayerMovement;
+    }
+
+    private static void LockAllCharacterMovement()
+    {
+        foreach (var cm in UnityEngine.Object.FindObjectsByType<CharacterMovement>(FindObjectsSortMode.None))
+        {
+            cm.enabled = true;
+            cm.movementLocked = true;
+        }
+    }
+
+    private void UnlockAllCharacterMovementIfAllowed()
+    {
+        if (inventory != null && inventory.IsInventoryOpen())
+            return;
+        foreach (var cm in UnityEngine.Object.FindObjectsByType<CharacterMovement>(FindObjectsSortMode.None))
+        {
+            cm.movementLocked = false;
+            cm.enabled = true;
+        }
+    }
 
     void Start()
     {
@@ -128,8 +157,9 @@ public class SettingsMenu : MonoBehaviour
     }
 
     public void CloseMenu() { 
-        if (characterMovement != null && (inventory == null || !inventory.IsInventoryOpen()))
-            characterMovement.enabled = true;
+        UnlockAllCharacterMovementIfAllowed();
+        if (xrCardboardController != null)
+            xrCardboardController.lookLocked = false;
         if (playerInteractionController != null) playerInteractionController.enabled = true;
         if (playerRaycaster != null && (inventory == null || !inventory.IsInventoryOpen()))
             playerRaycaster.SetRaycastEnabled(true);
@@ -186,67 +216,43 @@ public class SettingsMenu : MonoBehaviour
     {
         if (petStatsCard == null) return;
         petStatsCardOpen = true;
-        petStatsOpenTime = Time.time; // record when it opened
-        
+        petStatsOpenTime = Time.unscaledTime;
+
         if (settingsMenuContainer != null) settingsMenuContainer.SetActive(false);
         petStatsCard.SetActive(true);
 
-        // fetch UI Fill and Text elements if not done yet
-        if (statFillImages == null || statValueTexts == null)
-        {
-            var fills = new List<Image>();
-            var texts = new List<TMPro.TMP_Text>();
-            
-            foreach (var img in petStatsCard.GetComponentsInChildren<Image>(true))
-            {
-                if (img.gameObject.name == "Fill") fills.Add(img);
-            }
-            
-            foreach (var txt in petStatsCard.GetComponentsInChildren<TMPro.TMP_Text>(true))
-            {
-                if (txt.gameObject.name == "ValueText") texts.Add(txt);
-            }
-            
-            statFillImages = fills.ToArray();
-            statValueTexts = texts.ToArray();
-        }
+        EnsurePetStatsCardUiDriver();
+
+        ApplyPetStatsModalLock();
+    }
+
+    private void EnsurePetStatsCardUiDriver()
+    {
+        if (petStatsCard == null) return;
+        if (petStatsCard.GetComponent<PetStatsCardUI>() == null)
+            petStatsCard.AddComponent<PetStatsCardUI>();
+    }
+
+    private void ApplyPetStatsModalLock()
+    {
+        LockAllCharacterMovement();
+        if (xrCardboardController != null)
+            xrCardboardController.lookLocked = true;
+    }
+
+    private void ClearPetStatsLookLockOnly()
+    {
+        if (xrCardboardController != null)
+            xrCardboardController.lookLocked = false;
     }
 
     private void HandlePetStatsUpdate()
     {
-        if (petStatsCardOpen && PetStats.Instance != null && statFillImages != null && statFillImages.Length >= 5)
-        {
-            float hunger = PetStats.Instance.Hunger;
-            float thirst = PetStats.Instance.Thirst;
-            float happiness = PetStats.Instance.Happiness;
-            float hygiene = PetStats.Instance.Hygiene;
-            float energy = PetStats.Instance.Energy;
+        // Bars and ValueText are driven by PetStatsCardUI on petStatsCard (added at runtime if missing).
 
-            statFillImages[0].fillAmount = hunger / 100f;
-            statFillImages[1].fillAmount = thirst / 100f;
-            statFillImages[2].fillAmount = happiness / 100f;
-            statFillImages[3].fillAmount = hygiene / 100f;
-            statFillImages[4].fillAmount = energy / 100f;
+        if (Time.unscaledTime < petStatsOpenTime + 0.3f) return;
 
-            // update bar colors (Green -> Yellow -> Red)
-            for (int i = 0; i < 5; i++)
-            {
-                statFillImages[i].color = GetStatColor(statFillImages[i].fillAmount);
-            }
-
-            if (statValueTexts != null && statValueTexts.Length >= 5)
-            {
-                statValueTexts[0].text = hunger.ToString("F2") + "%";
-                statValueTexts[1].text = thirst.ToString("F2") + "%";
-                statValueTexts[2].text = happiness.ToString("F2") + "%";
-                statValueTexts[3].text = hygiene.ToString("F2") + "%";
-                statValueTexts[4].text = energy.ToString("F2") + "%";
-            }
-        }
-
-        if (Time.time < petStatsOpenTime + 0.3f) return;
-
-        if (Input.GetButtonDown("js5") || Input.GetButtonDown("js0") || Input.GetButtonDown("js7") || Input.GetButtonDown("Submit"))
+        if (AnyInputPressedToDismissStatsCard())
         {
             petStatsCardOpen = false;
             petStatsCard.SetActive(false);
@@ -254,20 +260,39 @@ public class SettingsMenu : MonoBehaviour
             if (openedFromCat)
             {
                 openedFromCat = false;
-                gameObject.SetActive(false);
+                CloseMenu();
             }
             else
             {
+                ClearPetStatsLookLockOnly();
                 if (settingsMenuContainer != null) settingsMenuContainer.SetActive(true);
             }
         }
     }
 
-    private Color GetStatColor(float fillAmount)
+    private static bool AnyInputPressedToDismissStatsCard()
     {
-        if (fillAmount > 0.6f) return Color.green;
-        if (fillAmount > 0.3f) return new Color(1f, 0.64f, 0f); // Orange
-        return Color.red;
+        if (Input.anyKeyDown)
+            return true;
+
+        for (int i = 0; i <= 14; i++)
+        {
+            if (Input.GetButtonDown("js" + i))
+                return true;
+        }
+
+        if (Input.GetButtonDown("Submit") || Input.GetButtonDown("Cancel") ||
+            Input.GetButtonDown("Jump") || Input.GetButtonDown("Fire1") ||
+            Input.GetButtonDown("Fire2") || Input.GetButtonDown("Fire3"))
+            return true;
+
+        for (int i = 0; i < 20; i++)
+        {
+            if (Input.GetKeyDown("joystick button " + i))
+                return true;
+        }
+
+        return false;
     }
 
     public void ReturnToMainMenu()
@@ -309,8 +334,8 @@ public class SettingsMenu : MonoBehaviour
         petStatsCardOpen = false;
         SetButton(currentButton);
 
-        // Lockdown: Stop movement and raycasting while in settings
-        if (characterMovement != null) characterMovement.enabled = false;
+        // Lock all CharacterMovement
+        LockAllCharacterMovement();
         if (playerRaycaster != null) playerRaycaster.SetRaycastEnabled(false);
     }
 }

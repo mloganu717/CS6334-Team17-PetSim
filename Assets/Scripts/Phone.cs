@@ -33,6 +33,8 @@ public class Phone : PetInteractable
         pet.ModifyStat("hunger", 100f);
         pet.ModifyStat("thirst", 100f);
         pet.ModifyStat("energy", 100f);
+        pet.ModifyStat("happiness", 100f);
+        pet.ModifyStat("hygiene", 100f);
         pet.RaiseFeedback("Vet Service: Your pet has been fully restored!");
 
         // play dialing -> ringing -> busy sequence
@@ -42,8 +44,8 @@ public class Phone : PetInteractable
     public void OrderFood(PetStats pet)
     {
         // good food order
-        pet.ModifyStat("hunger", 60f);
-        pet.RaiseFeedback("Delivery: Premium pet food served! Hunger +60.");
+        pet.ModifyStat("hunger", 100f);
+        pet.RaiseFeedback("Delivery: Premium pet food served! Hunger +100.");
     }
 
     private IEnumerator PlayCallSequence()

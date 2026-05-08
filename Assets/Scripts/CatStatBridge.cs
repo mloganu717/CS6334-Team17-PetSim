@@ -50,16 +50,16 @@ public class CatStatBridge : MonoBehaviour
 
     private void OnCatAte()
     {
-        _petStats?.ModifyStat("hunger", 35f);
+        _petStats?.ModifyStat("hunger", 100f);
     }
 
     private void OnCatDrank()
     {
-        _petStats?.ModifyStat("thirst", 40f);
+        _petStats?.ModifyStat("thirst", 100f);
     }
 
     private void OnCatUsedLitter()
     {
-        _petStats?.ModifyStat("hygiene", 10f);
+        _petStats?.ModifyStat("hygiene", 100f);
     }
 }

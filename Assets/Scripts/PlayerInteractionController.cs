@@ -10,6 +10,8 @@ public class PlayerInteractionController : MonoBehaviour
     [Header("Core References")]
     [SerializeField] private raycaster playerRaycaster;
     [SerializeField] private CharacterMovement movementScript;
+
+    public CharacterMovement PlayerMovement => movementScript;
     [SerializeField] private MovementSettings movementSettings;
     [SerializeField] private Transform holdParent;
     [SerializeField] private GameObject inventoryFullMessage;
@@ -346,9 +348,9 @@ public class PlayerInteractionController : MonoBehaviour
         Debug.Log("Order Food selected. Implement this later.");
 
         if (phoneUIManager != null)
-        {
             phoneUIManager.OpenHome();
-        }
+        else
+            Debug.LogWarning("PhoneUIManager is not assigned on PlayerInteractionController.");
     }
 
     private void UseCurrentObject()
@@ -504,14 +506,7 @@ public class PlayerInteractionController : MonoBehaviour
     {
         PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
 
-        if (pet != null)
-        {
-            pet.RaiseFeedback(message);
-        }
-        else
-        {
-            Debug.Log(message);
-        }
+        pet?.RaiseFeedback(message);
     }
 
     private string GetObjectDisplayName(GameObject obj)

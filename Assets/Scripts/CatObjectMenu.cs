@@ -6,7 +6,7 @@ public class CatObjectMenu : MonoBehaviour
     [SerializeField] private GameObject menuObject;
 
     [Header("Pet settings")]
-    [SerializeField] private float happinessBoost = 15f;
+    [SerializeField] private float happinessBoost = 100f;
     [SerializeField] private AudioClip purrClip;
 
     [Header("Play settings")]
@@ -48,24 +48,25 @@ public class CatObjectMenu : MonoBehaviour
 
     public void PlayWithCat()
     {
+        PetStats pet = PetStats.Instance != null
+            ? PetStats.Instance
+            : FindAnyObjectByType<PetStats>();
+
         GameObject toyBall = GameObject.Find(toyBallName);
         if (toyBall == null)
         {
-            Debug.LogWarning("ToyBall not found in scene. Make sure it's named: " + toyBallName);
+            pet?.RaiseFeedback("Couldn't find the toy ball.");
             CloseMenu();
             return;
         }
 
         var interactable = toyBall.GetComponent<PetInteractable>()
                         ?? toyBall.GetComponentInChildren<PetInteractable>();
-        PetStats pet = PetStats.Instance != null
-            ? PetStats.Instance
-            : FindAnyObjectByType<PetStats>();
 
         if (_catAI != null && interactable != null && pet != null)
             _catAI.GoToAndInteract(toyBall.transform, interactable, pet);
         else
-            Debug.LogWarning("CatObjectMenu.PlayWithCat: missing CatAI, PetInteractable, or PetStats.");
+            pet?.RaiseFeedback("Can't play right now.");
 
         CloseMenu();
     }

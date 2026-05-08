@@ -31,23 +31,52 @@ public class CatSenses : MonoBehaviour
 
     private void Scan()
     {
-        NearestFood = NearestWater = NearestLitter = NearestToy = null;
+        Transform nf = null;
+        Transform nw = null;
+        Transform nl = null;
+        Transform nt = null;
 
-        float bestFood   = float.MaxValue;
-        float bestWater  = float.MaxValue;
+        float bestFood = float.MaxValue;
+        float bestWater = float.MaxValue;
         float bestLitter = float.MaxValue;
-        float bestToy    = float.MaxValue;
+        float bestToy = float.MaxValue;
 
         var hits = Physics.OverlapSphere(transform.position, senseRadius, senseLayer);
 
         foreach (var hit in hits)
         {
-            float dist = Vector3.SqrMagnitude(hit.transform.position - transform.position);
+            TryPickNearestTagged(hit.transform, foodTag, ref bestFood, ref nf);
+            TryPickNearestTagged(hit.transform, waterTag, ref bestWater, ref nw);
+            TryPickNearestTagged(hit.transform, litterTag, ref bestLitter, ref nl);
+            TryPickNearestTagged(hit.transform, toyTag, ref bestToy, ref nt);
+        }
 
-            if (hit.CompareTag(foodTag)   && dist < bestFood)   { bestFood   = dist; NearestFood   = hit.transform; }
-            if (hit.CompareTag(waterTag)  && dist < bestWater)  { bestWater  = dist; NearestWater  = hit.transform; }
-            if (hit.CompareTag(litterTag) && dist < bestLitter) { bestLitter = dist; NearestLitter = hit.transform; }
-            if (hit.CompareTag(toyTag)    && dist < bestToy)    { bestToy    = dist; NearestToy    = hit.transform; }
+        NearestFood = nf;
+        NearestWater = nw;
+        NearestLitter = nl;
+        NearestToy = nt;
+    }
+
+    private static Transform FindTaggedAncestor(Transform start, string tag)
+    {
+        if (string.IsNullOrEmpty(tag) || start == null) return null;
+        for (Transform t = start; t != null; t = t.parent)
+        {
+            if (t.CompareTag(tag)) return t;
+        }
+        return null;
+    }
+
+    private void TryPickNearestTagged(Transform colliderTransform, string tag, ref float bestSqrDist, ref Transform nearest)
+    {
+        Transform tagged = FindTaggedAncestor(colliderTransform, tag);
+        if (tagged == null) return;
+
+        float dist = Vector3.SqrMagnitude(tagged.position - transform.position);
+        if (dist < bestSqrDist)
+        {
+            bestSqrDist = dist;
+            nearest = tagged;
         }
     }
 
@@ -55,11 +84,5 @@ public class CatSenses : MonoBehaviour
     {
         if (target == null) return false;
         return Vector3.Distance(transform.position, target.position) <= radius;
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = new Color(0.2f, 0.8f, 0.4f, 0.15f);
-        Gizmos.DrawSphere(transform.position, senseRadius);
     }
 }

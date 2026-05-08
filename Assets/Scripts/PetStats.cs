@@ -28,7 +28,7 @@ public class PetStats : MonoBehaviour
     public float Energy => energy;
     public float Hygiene => hygiene;
 
-    // Average of all five stats — useful for overall wellness checks
+    // Average of all five stats; useful for overall wellness checks
     public float OverallHealth => (hunger + thirst + happiness + energy + hygiene) / 5f;
 
     private void Awake()
