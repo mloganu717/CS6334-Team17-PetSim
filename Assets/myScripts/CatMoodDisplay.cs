@@ -1,86 +1,57 @@
 ﻿using System.Collections;
 using UnityEngine;
-using TMPro;
+using UnityEngine.UI;
 
-// Displays a floating emoji/symbol above the cat that reflects its current mood
-// and stat levels. Attach this to the cat GameObject.
+// Hovers a single emoji above the cat when a mood event fires.
+// Shows once per trigger then disappears — does not loop.
 //
-// Setup in the Inspector:
-//   1. Create a child GameObject on the cat, position it ~1.5 units above the head
-//   2. Add a TMP_Text component to it set to World Space
-//   3. Assign that TMP_Text to the displayText field below
-//
-// The display picks the highest priority active mood and shows it.
-// Priority order: Critical (dying) > Sick > Angry > Hungry > Thirsty > Tired >
-//                 Dirty > Happy > Content > Neutral
+// Setup:
+//   1. Create a child GameObject on the cat named "MoodPopup"
+//   2. Add a Canvas component set to World Space
+//   3. Add a child Image to that canvas
+//   4. Assign that Image to the displayImage field below
+//   5. Set the canvas width/height to something like 0.5 x 0.5
+//   6. Position it ~1.8 units above the cat's head
 
 public class CatMoodDisplay : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private TMP_Text displayText;
+    [SerializeField] private Image displayImage;
     [SerializeField] private PetStats petStats;
     [SerializeField] private CatMood catMood;
 
     [Header("Position")]
     [SerializeField] private Vector3 offset = new Vector3(0f, 1.8f, 0f);
 
-    [Header("Update Rate")]
-    [SerializeField] private float checkInterval = 0.5f;
-
     [Header("Animation")]
-    [SerializeField] private float bobHeight = 0.08f;
-    [SerializeField] private float bobSpeed = 2f;
     [SerializeField] private float fadeInTime = 0.3f;
-    [SerializeField] private float holdTime = 2.5f;
+    [SerializeField] private float holdTime = 2f;
     [SerializeField] private float fadeOutTime = 0.5f;
+    [SerializeField] private float floatHeight = 0.3f;
 
-    [Header("Stat Thresholds")]
-    [SerializeField] private float criticalThreshold = 10f;
-    [SerializeField] private float lowThreshold = 25f;
-    [SerializeField] private float happyThreshold = 75f;
-    [SerializeField] private float devotedThreshold = 90f;
+    [Header("Trigger Thresholds")]
+    [SerializeField] private float lowThreshold = 30f;
+    [SerializeField] private float highThreshold = 75f;
 
-    private enum MoodIcon
-    {
-        None,
-        Neutral,    // 😐
-        Content,    // 😊
-        Happy,      // 😄
-        Devoted,    // 😻
-        Hungry,     // 🍽
-        Thirsty,    // 💧
-        Tired,      // 💤
-        Dirty,      // 🤢  (low hygiene)
-        Angry,      // 😾
-        Sick,       // 🤮  (multiple stats critical)
-        Critical    // ❗
-    }
+    [Header("Emoji Sprites")]
+    [SerializeField] private Sprite happySprite;
+    [SerializeField] private Sprite devotedSprite;
+    [SerializeField] private Sprite contentSprite;
+    [SerializeField] private Sprite hungrySprite;
+    [SerializeField] private Sprite thirstySprite;
+    [SerializeField] private Sprite tiredSprite;
+    [SerializeField] private Sprite dirtySprite;
+    [SerializeField] private Sprite angrySprite;
+    [SerializeField] private Sprite sickSprite;
+    [SerializeField] private Sprite needySprite;
 
-    // Maps each icon to a display string. Use plain text symbols if emoji
-    // don't render in your font — swap these out freely.
-    private static readonly System.Collections.Generic.Dictionary<MoodIcon, string> IconMap
-        = new()
-    {
-        { MoodIcon.None,     ""    },
-        { MoodIcon.Neutral,  "😐"  },
-        { MoodIcon.Content,  "😊"  },
-        { MoodIcon.Happy,    "😄"  },
-        { MoodIcon.Devoted,  "😻"  },
-        { MoodIcon.Hungry,   "🍽"  },
-        { MoodIcon.Thirsty,  "💧"  },
-        { MoodIcon.Tired,    "💤"  },
-        { MoodIcon.Dirty,    "🤢"  },
-        { MoodIcon.Angry,    "😾"  },
-        { MoodIcon.Sick,     "🤮"  },
-        { MoodIcon.Critical, "❗"  },
-    };
+    private Coroutine _showCoroutine;
 
-    private MoodIcon _currentIcon = MoodIcon.None;
-    private MoodIcon _displayedIcon = MoodIcon.None;
-    private float _nextCheckTime;
-    private float _bobOffset;
-    private Coroutine _animCoroutine;
-    private Vector3 _baseLocalPosition;
+    private float _lastHunger;
+    private float _lastThirst;
+    private float _lastEnergy;
+    private float _lastHygiene;
+    private float _lastHappiness;
 
     private void Awake()
     {
@@ -89,148 +60,123 @@ public class CatMoodDisplay : MonoBehaviour
         if (catMood == null)
             catMood = GetComponent<CatMood>();
 
-        if (displayText != null)
+        if (displayImage != null)
         {
-            _baseLocalPosition = offset;
-            displayText.transform.localPosition = offset;
+            displayImage.transform.localPosition = offset;
             SetAlpha(0f);
+        }
+    }
+
+    private void Start()
+    {
+        if (petStats != null)
+        {
+            _lastHunger = petStats.Hunger;
+            _lastThirst = petStats.Thirst;
+            _lastEnergy = petStats.Energy;
+            _lastHygiene = petStats.Hygiene;
+            _lastHappiness = petStats.Happiness;
         }
     }
 
     private void Update()
     {
-        if (Time.time >= _nextCheckTime)
+        if (petStats == null)
         {
-            _nextCheckTime = Time.time + checkInterval;
-            EvaluateMood();
+            petStats = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+            return;
         }
 
-        // Bob the icon up and down while visible
-        if (displayText != null && displayText.color.a > 0.01f)
-        {
-            _bobOffset = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
-            displayText.transform.localPosition = _baseLocalPosition + Vector3.up * _bobOffset;
+        CheckThresholdCrossings();
 
-            // Always face the camera
-            if (Camera.main != null)
-            {
-                Vector3 dir = displayText.transform.position - Camera.main.transform.position;
-                displayText.transform.rotation = Quaternion.LookRotation(dir);
-            }
+        if (displayImage != null && Camera.main != null)
+        {
+            displayImage.transform.localPosition = offset;
+            Vector3 dir = displayImage.transform.position - Camera.main.transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.001f)
+                displayImage.transform.rotation = Quaternion.LookRotation(dir);
         }
     }
 
-    private void EvaluateMood()
+    private void CheckThresholdCrossings()
     {
-        if (petStats == null) return;
-
-        MoodIcon next = DetermineIcon();
-
-        if (next == _displayedIcon) return;
-
-        _displayedIcon = next;
-
-        if (_animCoroutine != null)
-            StopCoroutine(_animCoroutine);
-
-        if (next == MoodIcon.None)
-            _animCoroutine = StartCoroutine(FadeOut());
-        else
-            _animCoroutine = StartCoroutine(ShowIcon(IconMap[next], IconColor(next)));
-    }
-
-    private MoodIcon DetermineIcon()
-    {
-        if (petStats == null) return MoodIcon.None;
-
-        int criticalCount = 0;
-        if (petStats.Hunger < criticalThreshold) criticalCount++;
-        if (petStats.Thirst < criticalThreshold) criticalCount++;
-        if (petStats.Energy < criticalThreshold) criticalCount++;
-        if (petStats.Hygiene < criticalThreshold) criticalCount++;
-        if (petStats.Happiness < criticalThreshold) criticalCount++;
-
-        if (criticalCount >= 3) return MoodIcon.Critical;
-        if (criticalCount == 2) return MoodIcon.Sick;
-
-        if (catMood != null && catMood.IsWary) return MoodIcon.Angry;
-
-        if (petStats.Hunger < lowThreshold) return MoodIcon.Hungry;
-        if (petStats.Thirst < lowThreshold) return MoodIcon.Thirsty;
-        if (petStats.Energy < lowThreshold) return MoodIcon.Tired;
-        if (petStats.Hygiene < lowThreshold) return MoodIcon.Dirty;
-
-        if (catMood != null)
+        // Happiness went up noticeably — show positive reaction
+        if (petStats.Happiness > _lastHappiness + 5f)
         {
-            if (catMood.Affinity >= catMood.purringThreshold &&
-                petStats.Happiness >= devotedThreshold) return MoodIcon.Devoted;
-
-            if (catMood.IsFriendly &&
-                petStats.Happiness >= happyThreshold) return MoodIcon.Happy;
-
-            if (catMood.IsNeutral) return MoodIcon.Content;
+            if (petStats.Happiness >= highThreshold)
+                TriggerPopup(catMood != null && catMood.IsDevoted ? devotedSprite : happySprite);
+            else
+                TriggerPopup(contentSprite);
         }
 
-        return MoodIcon.Neutral;
+        // Stats crossing low threshold going downward — fire once on crossing
+        if (petStats.Hunger < lowThreshold && _lastHunger >= lowThreshold) TriggerPopup(hungrySprite);
+        if (petStats.Thirst < lowThreshold && _lastThirst >= lowThreshold) TriggerPopup(thirstySprite);
+        if (petStats.Energy < lowThreshold && _lastEnergy >= lowThreshold) TriggerPopup(tiredSprite);
+        if (petStats.Hygiene < lowThreshold && _lastHygiene >= lowThreshold) TriggerPopup(dirtySprite);
+
+        if (petStats.Happiness < lowThreshold && _lastHappiness >= lowThreshold)
+            TriggerPopup(catMood != null && catMood.IsWary ? angrySprite : sickSprite);
+
+        _lastHunger = petStats.Hunger;
+        _lastThirst = petStats.Thirst;
+        _lastEnergy = petStats.Energy;
+        _lastHygiene = petStats.Hygiene;
+        _lastHappiness = petStats.Happiness;
     }
 
-    private Color IconColor(MoodIcon icon)
+    public void TriggerPopup(Sprite sprite)
     {
-        return icon switch
-        {
-            MoodIcon.Critical or MoodIcon.Sick => new Color(1f, 0.2f, 0.2f),
-            MoodIcon.Angry => new Color(1f, 0.35f, 0.1f),
-            MoodIcon.Hungry or MoodIcon.Thirsty => new Color(1f, 0.85f, 0.2f),
-            MoodIcon.Tired or MoodIcon.Dirty => new Color(0.6f, 0.8f, 0.6f),
-            MoodIcon.Happy or MoodIcon.Devoted => new Color(0.4f, 1f, 0.6f),
-            _ => Color.white,
-        };
+        if (sprite == null) return;
+
+        if (_showCoroutine != null)
+            StopCoroutine(_showCoroutine);
+
+        _showCoroutine = StartCoroutine(ShowPopup(sprite));
     }
 
-    private IEnumerator ShowIcon(string symbol, Color color)
+    public void TriggerNeedy() => TriggerPopup(needySprite);
+    public void TriggerHappy() => TriggerPopup(happySprite);
+
+    private IEnumerator ShowPopup(Sprite sprite)
     {
-        if (displayText == null) yield break;
+        if (displayImage == null) yield break;
 
-        displayText.text = symbol;
-        displayText.color = new Color(color.r, color.g, color.b, 0f);
+        displayImage.sprite = sprite;
 
-        // Fade in
+        Vector3 startPos = offset;
+        Vector3 endPos = offset + Vector3.up * floatHeight;
+
         float t = 0f;
         while (t < 1f)
         {
             t += Time.deltaTime / fadeInTime;
-            SetAlpha(Mathf.Clamp01(t));
+            float c = Mathf.Clamp01(t);
+            SetAlpha(c);
+            displayImage.transform.localPosition = Vector3.Lerp(startPos, endPos, c);
             yield return null;
         }
 
-        // Hold
         yield return new WaitForSeconds(holdTime);
 
-        // If the mood hasn't changed, fade out and re-evaluate next cycle
-        yield return StartCoroutine(FadeOut());
-        _displayedIcon = MoodIcon.None;
-    }
-
-    private IEnumerator FadeOut()
-    {
-        if (displayText == null) yield break;
-
-        float startAlpha = displayText.color.a;
-        float t = 0f;
+        t = 0f;
         while (t < 1f)
         {
             t += Time.deltaTime / fadeOutTime;
-            SetAlpha(Mathf.Lerp(startAlpha, 0f, Mathf.Clamp01(t)));
+            SetAlpha(Mathf.Lerp(1f, 0f, Mathf.Clamp01(t)));
             yield return null;
         }
+
         SetAlpha(0f);
+        displayImage.transform.localPosition = offset;
     }
 
     private void SetAlpha(float alpha)
     {
-        if (displayText == null) return;
-        Color c = displayText.color;
+        if (displayImage == null) return;
+        Color c = displayImage.color;
         c.a = alpha;
-        displayText.color = c;
+        displayImage.color = c;
     }
 }

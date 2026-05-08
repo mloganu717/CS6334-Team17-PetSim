@@ -5,11 +5,21 @@ public class CatObjectMenu : MonoBehaviour
     [Header("Menu")]
     [SerializeField] private GameObject menuObject;
 
-    [Header("Pet settings")]
-    [SerializeField] private float happinessBoost = 100f;
-    [SerializeField] private AudioClip purrClip;
+    [Header("Pet Settings")]
+    [SerializeField] private float happinessBoost = 15f;
 
-    [Header("Play settings")]
+    [Header("Pet Audio - assign clips that reflect mood")]
+    [SerializeField] private AudioClip purrClip;        // happy 
+    [SerializeField] private AudioClip contentClip;     //  content
+    [SerializeField] private AudioClip angryClip;       // wary — hiss or growl
+
+    [Header("Pet Audio Thresholds")]
+    [Tooltip("Happiness above this plays the purr clip")]
+    [SerializeField] private float happyAudioThreshold = 70f;
+    [Tooltip("Happiness above this plays the content clip")]
+    [SerializeField] private float contentAudioThreshold = 40f;
+
+    [Header("Play Settings")]
     [SerializeField] private string toyBallName = "ToyBall";
     [SerializeField] private SettingsMenu settingsMenu;
 
@@ -19,7 +29,7 @@ public class CatObjectMenu : MonoBehaviour
 
     private void Awake()
     {
-        _catAI   = GetComponent<CatAIController>();
+        _catAI = GetComponent<CatAIController>();
         _catMood = GetComponent<CatMood>();
 
         _audioSource = GetComponent<AudioSource>();
@@ -27,46 +37,79 @@ public class CatObjectMenu : MonoBehaviour
             _audioSource = gameObject.AddComponent<AudioSource>();
 
         _audioSource.spatialBlend = 1f;
-        _audioSource.playOnAwake  = false;
+        _audioSource.playOnAwake = false;
     }
 
     public void PetCat()
     {
-        if (PetStats.Instance != null)
+        PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+        // Read happiness before the boost so audio reflects current mood
+        float currentHappiness = pet != null ? pet.Happiness : 50f;
+
+        if (pet != null)
         {
-            PetStats.Instance.ModifyStat("happiness", happinessBoost);
-            PetStats.Instance.RaiseFeedback("The cat purrs happily!");
+            pet.ModifyStat("happiness", happinessBoost);
+            pet.RaiseFeedback(PetFeedbackMessage(currentHappiness));
         }
 
         _catMood?.Reward(4f);
 
-        if (purrClip != null && _audioSource != null)
-            _audioSource.PlayOneShot(purrClip);
+        PlayPetAudio(currentHappiness);
 
         CloseMenu();
     }
 
+    private void PlayPetAudio(float happiness)
+    {
+        if (_audioSource == null) return;
+
+        AudioClip clip;
+
+        if (_catMood != null && _catMood.IsWary)
+            clip = angryClip;
+        else if (happiness >= happyAudioThreshold)
+            clip = purrClip;
+        else if (happiness >= contentAudioThreshold)
+            clip = contentClip;
+        else
+            clip = angryClip;
+
+        if (clip != null)
+            _audioSource.PlayOneShot(clip);
+    }
+
+    private string PetFeedbackMessage(float happiness)
+    {
+        if (_catMood != null && _catMood.IsWary)
+            return "The cat hisses and backs away!";
+        if (happiness >= happyAudioThreshold)
+            return "The cat purrs loudly and leans in!";
+        if (happiness >= contentAudioThreshold)
+            return "The cat seems okay with being pet.";
+        return "The cat looks angry and swipes at you!";
+    }
+
     public void PlayWithCat()
     {
-        PetStats pet = PetStats.Instance != null
-            ? PetStats.Instance
-            : FindAnyObjectByType<PetStats>();
-
         GameObject toyBall = GameObject.Find(toyBallName);
         if (toyBall == null)
         {
-            pet?.RaiseFeedback("Couldn't find the toy ball.");
+            Debug.LogWarning("ToyBall not found in scene. Make sure it's named: " + toyBallName);
             CloseMenu();
             return;
         }
 
         var interactable = toyBall.GetComponent<PetInteractable>()
                         ?? toyBall.GetComponentInChildren<PetInteractable>();
+        PetStats pet = PetStats.Instance != null
+            ? PetStats.Instance
+            : FindAnyObjectByType<PetStats>();
 
         if (_catAI != null && interactable != null && pet != null)
             _catAI.GoToAndInteract(toyBall.transform, interactable, pet);
         else
-            pet?.RaiseFeedback("Can't play right now.");
+            Debug.LogWarning("CatObjectMenu.PlayWithCat: missing CatAI, PetInteractable, or PetStats.");
 
         CloseMenu();
     }
