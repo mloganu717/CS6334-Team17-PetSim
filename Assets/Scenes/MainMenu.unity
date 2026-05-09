@@ -242,7 +242,7 @@ MonoBehaviour:
   menuButtons:
   - {fileID: 1197781209}
   - {fileID: 1087891192}
-  gameSceneName: Romik
+  gameSceneName: FinalScene
 --- !u!4 &466062070
 Transform:
   m_ObjectHideFlags: 0
