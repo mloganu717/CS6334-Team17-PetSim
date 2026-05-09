@@ -33,14 +33,6 @@ We selected this requirement to bypass cumbersome text input and rigid dialogue 
 
 ---
 
-## Unity Scene
-
-The preliminary prototype is located at:
-
-```
-Assets/Scenes/Prototype
-```
-
 The final build uses two scenes:
 
 ```
