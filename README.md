@@ -37,7 +37,7 @@ The final build uses two scenes:
 
 ```
 Scenes/MainMenu
-Scenes/FinalTeam17
+Scenes/FinalScene
 ```
 
 Open these scenes in the Unity Editor to run, build, or modify the project. Ensure the **Build Platform** is set to **Android** before deploying to a device.
@@ -57,11 +57,11 @@ Open these scenes in the Unity Editor to run, build, or modify the project. Ensu
 
 ## GitHub
 
-- **Repository:** [YOUR GITHUB REPO URL HERE]
-- **Branch:** `main`
+- **Repository:** [[YOUR GITHUB REPO URL HERE]](https://github.com/mloganu717/CS6334-Team17-PetSim/tree/roman-latest)
+- **Branch:** `roman-latest`
 - **Clone:**
   ```bash
-  git clone https://github.com/[username]/PetSim.git
+  git clone [https://github.com/[username]/PetSim.git](https://github.com/mloganu717/CS6334-Team17-PetSim.git)
   ```
 
 All scenes, assets, and scripts are version-controlled in the repository.
@@ -103,9 +103,9 @@ PetSim is a **single-player** experience. Multiplayer is not supported in this v
 
 ## Video Demonstration
 
-**YouTube Demo:** https://www.youtube.com/shorts/CGOvY5Q0b1g
+**YouTube Demo:** [[[https://www.youtube.com/shorts/CGOvY5Q0b1g](https://youtu.be/8iHGsO2qykA)](https://youtu.be/8iHGsO2qykA)](https://youtu.be/8iHGsO2qykA)
 
-The video covers scene navigation, gaze-based interaction, controller input, and the core pet care loop.
+The video covers the Final Prototype which includes both advanced requirements and interactable objects in the scene.
 
 ---
 
@@ -113,7 +113,7 @@ The video covers scene navigation, gaze-based interaction, controller input, and
 
 1. Clone the repository and open it in **Unity Hub**
 2. Go to **File > Build Settings** and set the platform to **Android**
-3. Drag and drop both `Scenes/MainMenu` and `Scenes/FinalTeam17` into the Scenes in Build list — ensure **MainMenu is at index 0**
+3. Drag and drop both `Scenes/MainMenu` and `Scenes/FinalScene` into the Scenes in Build list — ensure **MainMenu is at index 0**
 4. Install the **Google Cardboard XR Plugin** via the Package Manager
 5. Enable **Developer Mode** on your Android device and connect via USB
 6. Click **Build and Run** in Unity to deploy to the device, or alternatively transfer and install the pre-built `FinalTeam17.apk` directly to your phone
