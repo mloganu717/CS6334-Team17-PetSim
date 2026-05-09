@@ -64,7 +64,7 @@ public class CatAIController : MonoBehaviour
     {
         Wander, FollowPlayer, PlayWithToy,
         EatFood, DrinkWater, UseLitterBox,
-        Flee, Busy, CommandedInteract
+        SleepInBed, Flee, Busy, CommandedInteract
     }
 
     private enum DesireType
@@ -73,7 +73,8 @@ public class CatAIController : MonoBehaviour
         Food,
         Water,
         Litter,
-        Play
+        Play,
+        Sleep
     }
 
     private CatState _state = CatState.Wander;
@@ -113,6 +114,11 @@ public class CatAIController : MonoBehaviour
     private Transform _lockedWater;
     private Transform _lockedLitter;
     private Transform _lockedToy;
+    private Transform _lockedBed;
+
+    [Header("Sleep")]
+    [SerializeField, Min(0.15f)] private float bedStopDistance = 0.7f;
+    [SerializeField] private float sleepDuration = 10f;
 
     private float _navDefaultStoppingDistance;
 
@@ -246,6 +252,14 @@ public class CatAIController : MonoBehaviour
                     return;
                 }
                 break;
+
+            case DesireType.Sleep:
+                if (_senses.NearestBed != null)
+                {
+                    TransitionTo(CatState.SleepInBed);
+                    return;
+                }
+                break;
         }
 
         if (player != null && _mood.Affinity >= _mood.followThreshold)
@@ -311,16 +325,18 @@ public class CatAIController : MonoBehaviour
 
     private static bool IsActiveNeedChaseState(CatState s) =>
         s == CatState.EatFood || s == CatState.DrinkWater ||
-        s == CatState.UseLitterBox || s == CatState.PlayWithToy;
+        s == CatState.UseLitterBox || s == CatState.PlayWithToy ||
+        s == CatState.SleepInBed;
 
     private bool StillHasTargetForNeedState(CatState s)
     {
         return s switch
         {
-            CatState.EatFood => ResolveFoodTarget() != null,
-            CatState.DrinkWater => ResolveWaterTarget() != null,
-            CatState.UseLitterBox => ResolveLitterTarget() != null,
-            CatState.PlayWithToy => ResolveToyTarget() != null,
+            CatState.EatFood      => ResolveFoodTarget()   != null,
+            CatState.DrinkWater   => ResolveWaterTarget()  != null,
+            CatState.UseLitterBox => ResolveLitterTarget()  != null,
+            CatState.PlayWithToy  => ResolveToyTarget()    != null,
+            CatState.SleepInBed   => ResolveBedTarget()    != null,
             _ => false
         };
     }
@@ -335,21 +351,24 @@ public class CatAIController : MonoBehaviour
                           (petStats != null && petStats.Thirst < lowPetThirstThreshold);
         bool needsLitter = _needs.NeedsLitter;
         bool isUnhappy = petStats != null && petStats.Happiness <= lowHappinessPlayThreshold;
+        bool isSleepy  = petStats != null && petStats.Energy < lowPetEnergyThreshold;
 
         if (needsLitter) return DesireType.Litter;
-        if (wantsFood) return DesireType.Food;
-        if (wantsWater) return DesireType.Water;
-        if (isUnhappy) return DesireType.Play;
+        if (wantsFood)   return DesireType.Food;
+        if (wantsWater)  return DesireType.Water;
+        if (isSleepy)    return DesireType.Sleep;
+        if (isUnhappy)   return DesireType.Play;
         return DesireType.None;
     }
 
     private static DesireType DesireForNeedState(CatState s) =>
         s switch
         {
-            CatState.EatFood => DesireType.Food,
-            CatState.DrinkWater => DesireType.Water,
+            CatState.EatFood     => DesireType.Food,
+            CatState.DrinkWater  => DesireType.Water,
             CatState.UseLitterBox => DesireType.Litter,
             CatState.PlayWithToy => DesireType.Play,
+            CatState.SleepInBed  => DesireType.Sleep,
             _ => DesireType.None
         };
 
@@ -357,9 +376,10 @@ public class CatAIController : MonoBehaviour
         d switch
         {
             DesireType.Litter => 4,
-            DesireType.Food => 3,
-            DesireType.Water => 2,
-            DesireType.Play => 1,
+            DesireType.Food   => 3,
+            DesireType.Water  => 2,
+            DesireType.Sleep  => 2,
+            DesireType.Play   => 1,
             _ => 0
         };
 
@@ -375,7 +395,7 @@ public class CatAIController : MonoBehaviour
 
     private void ClearInteractLocks()
     {
-        _lockedFood = _lockedWater = _lockedLitter = _lockedToy = null;
+        _lockedFood = _lockedWater = _lockedLitter = _lockedToy = _lockedBed = null;
     }
 
     private Transform ResolveFoodTarget() =>
@@ -389,6 +409,9 @@ public class CatAIController : MonoBehaviour
 
     private Transform ResolveToyTarget() =>
         TargetAlive(_lockedToy) ? _lockedToy : _senses.NearestToy;
+
+    private Transform ResolveBedTarget() =>
+        TargetAlive(_lockedBed) ? _lockedBed : _senses.NearestBed;
 
     private void TransitionTo(CatState next)
     {
@@ -442,6 +465,14 @@ public class CatAIController : MonoBehaviour
                 if (_lockedToy != null)
                     SetDestinationNear(_lockedToy.position, EffectiveToyStandoff(), force: true);
                 _waitUntilTime = 0f;
+                break;
+
+            case CatState.SleepInBed:
+                ClearInteractLocks();
+                _lockedBed = _senses.NearestBed;
+                PetStats.Instance?.RaiseFeedback("The cat is tired and going to its bed.");
+                if (_lockedBed != null)
+                    SetDestinationNear(_lockedBed.position, bedStopDistance, force: true);
                 break;
 
             case CatState.CommandedInteract:
@@ -578,6 +609,33 @@ public class CatAIController : MonoBehaviour
                 }
                 break;
 
+            case CatState.SleepInBed:
+                {
+                    Transform bed = ResolveBedTarget();
+                    if (bed != null)
+                    {
+                        SetDestinationNear(bed.position, bedStopDistance);
+
+                        if (ReachedInteractTarget(bed, bedStopDistance))
+                        {
+                            PetInteractable bedInteractable = bed.GetComponentInParent<PetInteractable>();
+                            PetStats pet = PetStats.Instance != null ? PetStats.Instance : FindAnyObjectByType<PetStats>();
+
+                            StartBusy(sleepDuration, CatState.Wander, () =>
+                            {
+                                if (pet != null)
+                                {
+                                    pet.ModifyStat("energy", 100f);
+                                    pet.RaiseFeedback("The cat woke up from a nap feeling refreshed!");
+                                }
+                                if (bedInteractable != null && pet != null)
+                                    bedInteractable.Interact(pet);
+                            });
+                        }
+                    }
+                }
+                break;
+
             case CatState.CommandedInteract when _commandTarget != null:
                 SetDestinationNear(_commandTarget.position, _commandStopDist);
 
@@ -693,6 +751,9 @@ public class CatAIController : MonoBehaviour
                 break;
             case CatState.PlayWithToy:
                 _agent.stoppingDistance = Mathf.Clamp(EffectiveToyStandoff(), 0.12f, 0.85f);
+                break;
+            case CatState.SleepInBed:
+                _agent.stoppingDistance = Mathf.Clamp(bedStopDistance, 0.12f, 0.85f);
                 break;
             case CatState.CommandedInteract:
                 _agent.stoppingDistance = Mathf.Clamp(Mathf.Max(_commandStopDist, 0.25f), 0.12f, 1.25f);

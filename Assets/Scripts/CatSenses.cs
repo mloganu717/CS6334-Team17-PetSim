@@ -12,11 +12,13 @@ public class CatSenses : MonoBehaviour
     [SerializeField] private string waterTag  = "CatWater";
     [SerializeField] private string litterTag = "CatLitter";
     [SerializeField] private string toyTag    = "CatToy";
+    [SerializeField] private string bedTag    = "CatBed";
 
     public Transform NearestFood   { get; private set; }
     public Transform NearestWater  { get; private set; }
     public Transform NearestLitter { get; private set; }
     public Transform NearestToy    { get; private set; }
+    public Transform NearestBed    { get; private set; }
 
     private float _nextScanTime;
 
@@ -35,26 +37,30 @@ public class CatSenses : MonoBehaviour
         Transform nw = null;
         Transform nl = null;
         Transform nt = null;
+        Transform nb = null;
 
         float bestFood = float.MaxValue;
         float bestWater = float.MaxValue;
         float bestLitter = float.MaxValue;
         float bestToy = float.MaxValue;
+        float bestBed = float.MaxValue;
 
         var hits = Physics.OverlapSphere(transform.position, senseRadius, senseLayer);
 
         foreach (var hit in hits)
         {
-            TryPickNearestTagged(hit.transform, foodTag, ref bestFood, ref nf);
-            TryPickNearestTagged(hit.transform, waterTag, ref bestWater, ref nw);
+            TryPickNearestTagged(hit.transform, foodTag,   ref bestFood,   ref nf);
+            TryPickNearestTagged(hit.transform, waterTag,  ref bestWater,  ref nw);
             TryPickNearestTagged(hit.transform, litterTag, ref bestLitter, ref nl);
-            TryPickNearestTagged(hit.transform, toyTag, ref bestToy, ref nt);
+            TryPickNearestTagged(hit.transform, toyTag,    ref bestToy,    ref nt);
+            TryPickNearestTagged(hit.transform, bedTag,    ref bestBed,    ref nb);
         }
 
-        NearestFood = nf;
-        NearestWater = nw;
+        NearestFood   = nf;
+        NearestWater  = nw;
         NearestLitter = nl;
-        NearestToy = nt;
+        NearestToy    = nt;
+        NearestBed    = nb;
     }
 
     private static Transform FindTaggedAncestor(Transform start, string tag)

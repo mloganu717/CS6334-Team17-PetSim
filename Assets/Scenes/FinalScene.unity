@@ -5636,6 +5636,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bed
       objectReference: {fileID: 0}
+    - target: {fileID: 4567161296019129778, guid: 7d36e7b4ee2d82b4f99c90420adfdde7, type: 3}
+      propertyPath: m_TagString
+      value: CatBed
+      objectReference: {fileID: 0}
     - target: {fileID: 9189797394927756333, guid: 7d36e7b4ee2d82b4f99c90420adfdde7, type: 3}
       propertyPath: m_fontMaterial
       value: 
