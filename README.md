@@ -57,11 +57,11 @@ Open these scenes in the Unity Editor to run, build, or modify the project. Ensu
 
 ## GitHub
 
-- **Repository:** [[YOUR GITHUB REPO URL HERE]](https://github.com/mloganu717/CS6334-Team17-PetSim/tree/roman-latest)
+- **Repository:** (https://github.com/mloganu717/CS6334-Team17-PetSim/tree/roman-latest)
 - **Branch:** `roman-latest`
 - **Clone:**
   ```bash
-  git clone [https://github.com/[username]/PetSim.git](https://github.com/mloganu717/CS6334-Team17-PetSim.git)
+  git clone (https://github.com/mloganu717/CS6334-Team17-PetSim.git)
   ```
 
 All scenes, assets, and scripts are version-controlled in the repository.
