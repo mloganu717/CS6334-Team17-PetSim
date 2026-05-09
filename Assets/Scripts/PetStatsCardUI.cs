@@ -62,6 +62,38 @@ public class PetStatsCardUI : MonoBehaviour
     private void Update()
     {
         UpdateVisuals();
+
+        if (Input.GetKeyDown(KeyCode.Q) || Input.GetButtonDown("js5")) //close stats card with js5 or Q button on keyboard
+        {
+            CloseCard();
+        }
+    }
+
+    private void CloseCard()
+    {
+        // re-enable movement
+        foreach (var cm in FindObjectsByType<CharacterMovement>(FindObjectsSortMode.None))
+        {
+            cm.movementLocked = false;
+            cm.enabled = true;
+        }
+
+        // re-enable raycast
+        var ray = FindAnyObjectByType<raycaster>();
+        if (ray != null)
+            ray.SetRaycastEnabled(true);
+
+        // unlock XR look
+        var xr = FindAnyObjectByType<XRCardboardController>();
+        if (xr != null)
+            xr.lookLocked = false;
+
+        // tell SettingsMenu to clean up its state if it's open
+        var settingsMenu = FindAnyObjectByType<SettingsMenu>();
+        if (settingsMenu != null && settingsMenu.gameObject.activeSelf)
+            settingsMenu.CloseMenu();
+
+        gameObject.SetActive(false);
     }
 
     private void TryAutoFindReferences()

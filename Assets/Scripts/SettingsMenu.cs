@@ -248,7 +248,7 @@ public class SettingsMenu : MonoBehaviour
 
     private void HandlePetStatsUpdate()
     {
-        // Bars and ValueText are driven by PetStatsCardUI on petStatsCard (added at runtime if missing).
+        // Bars and ValueText are driven by PetStatsCardUI on petStatsCard
 
         if (Time.unscaledTime < petStatsOpenTime + 0.3f) return;
 
